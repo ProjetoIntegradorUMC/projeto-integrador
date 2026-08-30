@@ -1,9 +1,10 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, make_response
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app import db
 from app.models import User
+from app.utils.sessions import create_session, get_current_session, revoke_session, login_required
 from app.two_factor import (
     generate_totp_secret,
     get_provisioning_uri,
@@ -73,43 +74,71 @@ def login():
     if not user:
         return jsonify({"error": "Credenciais inválidas"}), 401
 
-    # checkpw() extrai o salt embutido no hash armazenado e recalcula o hash
-    # da senha recebida usando esse mesmo salt, comparando o resultado.
-    # A senha em texto puro nunca é comparada diretamente.
+    # ---  PROTEÇÃO CONTRA FORÇA BRUTA ---
+    now = datetime.now(timezone.utc)
+    
+    # 1. Verifica se o usuário está bloqueado
+    if user.locked_until and user.locked_until > now:
+        minutos_restantes = (user.locked_until - now).seconds // 60
+        return jsonify({
+            "error": f"Conta bloqueada por segurança. Tente novamente em {minutos_restantes} minutos."
+        }), 423  # HTTP 423 Locked (Recurso trancado)
+
     password_valid = bcrypt.checkpw(
         password.encode("utf-8"), user.password_hash.encode("utf-8")
     )
 
     if not password_valid:
+        # 2. Se errou a senha, aumenta a contagem de tentativas
+        user.failed_attempts += 1
+        
+        # 3. Se errou 5 vezes seguidas, tranca a conta por 15 minutos
+        if user.failed_attempts >= 5:
+            user.locked_until = now + timedelta(minutes=15)
+            db.session.commit()
+            return jsonify({"error": "Muitas tentativas falhas. Conta bloqueada por 15 minutos."}), 423
+            
+        db.session.commit()
         return jsonify({"error": "Credenciais inválidas"}), 401
 
-    # Se 2FA está habilitado, exigir verificação do código TOTP
+    # 4. Se a senha for válida, zera o contador de erros e remove qualquer bloqueio
+    user.failed_attempts = 0
+    user.locked_until = None
+    db.session.commit()
+    # --- FIM DA PROTEÇÃO ---
+
+    # Se 2FA está habilitado, o fluxo desvia para lá sem criar a sessão definitiva ainda.
     if user.two_factor_enabled:
-        # Armazenar na sessão o ID do usuário aguardando 2FA
         session["pending_user_id"] = user.id
-        # Expiração da sessão: 5 minutos para validar o código
         session.permanent = True
         session.permanent_session_lifetime = timedelta(minutes=5)
-        return (
-            jsonify(
-                {
-                    "message": "Autenticação primária bem-sucedida. Aguardando validação de 2FA.",
-                    "requires_2fa": True,
-                }
-            ),
-            200,
-        )
+        return jsonify({
+            "message": "Autenticação primária bem-sucedida. Aguardando validação de 2FA.",
+            "requires_2fa": True,
+        }), 200
 
-    return (
-        jsonify(
-            {
-                "message": "Login realizado com sucesso",
-                "user": {"id": user.id, "username": user.username, "email": user.email},
-                "requires_2fa": False,
-            }
-        ),
-        200,
+    # --- INÍCIO DA NOSSA CRIAÇÃO DE SESSÃO (Quando não tem 2FA) ---
+    # Cria a sessão no banco usando a ferramenta que fizemos na Etapa 2
+    session_obj = create_session(user.id)
+    
+    # Prepara a resposta JSON
+    response = make_response(jsonify({
+        "message": "Login realizado com sucesso",
+        "user": {"id": user.id, "username": user.username, "email": user.email},
+        "requires_2fa": False,
+    }))
+    
+    # Seta o cookie contendo apenas o token opaco. 
+    # Segurança (XSS): httponly=True impede que o Javascript do navegador roube o cookie.
+    response.set_cookie(
+        "session_id", 
+        session_obj.token, 
+        httponly=True, 
+        samesite="Lax", 
+        max_age=30 * 60  # Expira do navegador em 30 minutos (em segundos)
     )
+    
+    return response, 200
 
 
 @auth_bp.route("/verify-2fa", methods=["POST"])
@@ -138,15 +167,23 @@ def verify_2fa():
     # Limpar a sessão de 2FA pendente
     session.pop("pending_user_id", None)
 
-    return (
-        jsonify(
-            {
-                "message": "Login concluído com sucesso após validação de 2FA",
-                "user": {"id": user.id, "username": user.username, "email": user.email},
-            }
-        ),
-        200,
+    # --- INÍCIO DA NOSSA CRIAÇÃO DE SESSÃO (Quando passa pelo 2FA) ---
+    session_obj = create_session(user.id)
+    
+    response = make_response(jsonify({
+        "message": "Login concluído com sucesso após validação de 2FA",
+        "user": {"id": user.id, "username": user.username, "email": user.email},
+    }))
+    
+    response.set_cookie(
+        "session_id", 
+        session_obj.token, 
+        httponly=True, 
+        samesite="Lax", 
+        max_age=30 * 60
     )
+    
+    return response, 200
 
 
 @auth_bp.route("/2fa/setup", methods=["POST"])
@@ -270,3 +307,41 @@ def get_2fa_status():
         ),
         200,
     )
+
+
+@auth_bp.route("/logout", methods=["POST"])
+@login_required
+def logout(current_user):
+    """
+    Revoga a sessão no banco de dados e limpa o cookie do navegador.
+    Segurança e LGPD: A revogação no banco garante que um cookie roubado
+    não possa mais ser reutilizado de forma maliciosa.
+    """
+    session_obj, _ = get_current_session()
+    
+    # Invalida no lado do servidor (banco de dados)
+    revoke_session(session_obj)
+    
+    response = make_response(jsonify({"message": "Logout realizado com sucesso"}))
+    
+    # Invalida no lado do cliente (navegador) sobrescrevendo o cookie para expirar no passado
+    response.set_cookie("session_id", "", expires=0)
+    
+    return response, 200
+
+
+@auth_bp.route("/me", methods=["GET"])
+@login_required
+def get_me(current_user):
+    """
+    Retorna os dados do usuário atual se ele tiver um cookie válido.
+    Fundamental para o frontend saber se alguém está logado ao recarregar a página,
+    sem precisar mandar a senha de novo.
+    """
+    return jsonify({
+        "user": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email
+        }
+    }), 200
