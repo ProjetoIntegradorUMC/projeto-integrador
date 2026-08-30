@@ -45,7 +45,15 @@ backToLogin.addEventListener("click", () => {
     document.getElementById("twoFactorCode").value = "";
 });
 
-logoutBtn.addEventListener("click", () => {
+logoutBtn.addEventListener("click", async () => {
+    // 1. Avisa o backend para destruir a sessão no banco e limpar o cookie
+    try {
+        await fetch("/auth/logout", { method: "POST" });
+    } catch (error) {
+        console.error("Erro ao fazer logout no servidor:", error);
+    }
+    
+    // 2. Limpa o estado no frontend e volta pra tela de login
     currentUser = null;
     dashboardSection.classList.add("d-none");
     loginSection.classList.remove("d-none");
@@ -406,5 +414,20 @@ disableTwoFactorForm.addEventListener("submit", async (event) => {
                 Não foi possível conectar ao servidor.
             </div>
         `;
+    }
+});
+
+
+// Verifica se já existe um cookie válido no navegador
+window.addEventListener("DOMContentLoaded", async () => {
+    try {
+        const response = await fetch("/auth/me");
+        if (response.ok) {
+            const data = await response.json();
+            currentUser = data.user;
+            showDashboard();
+        }
+    } catch (error) {
+        console.error("Erro ao verificar sessão ativa:", error);
     }
 });
