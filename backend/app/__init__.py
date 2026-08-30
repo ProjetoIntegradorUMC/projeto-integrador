@@ -53,6 +53,12 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = connection_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+    # Configuração de sessão para 2FA
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SECURE"] = False  # True em produção com HTTPS
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+
     db.init_app(app)
 
     from app.models import User
