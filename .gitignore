@@ -1,9 +1,10 @@
 # Ambiente virtual Python
-backend/.venv/
+.venv/
 
 # Variáveis de ambiente
 .env
-backend/.env
+.env.*
+!.env.example
 
 # Cache do Python
 __pycache__/
