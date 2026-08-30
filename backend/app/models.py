@@ -11,3 +11,7 @@ class User(db.Model):
     # com folga para eventual migração futura para Argon2, que gera hashes
     # maiores.
     password_hash = db.Column(db.String(255), nullable=False)
+
+    # TOTP secret para 2FA (base32, compatível com Google Authenticator)
+    two_factor_enabled = db.Column(db.Boolean, default=False)
+    two_factor_secret = db.Column(db.String(32), nullable=True)

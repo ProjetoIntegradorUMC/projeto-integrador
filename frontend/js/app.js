@@ -1,35 +1,60 @@
+// DOM Elements
 const loginSection = document.getElementById("loginSection");
 const registerSection = document.getElementById("registerSection");
+const twoFactorSection = document.getElementById("twoFactorSection");
+const dashboardSection = document.getElementById("dashboardSection");
 
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
+const twoFactorForm = document.getElementById("twoFactorForm");
+const confirmTwoFactorForm = document.getElementById("confirmTwoFactorForm");
+const disableTwoFactorForm = document.getElementById("disableTwoFactorForm");
 
 const loginMessage = document.getElementById("loginMessage");
 const registerMessage = document.getElementById("registerMessage");
+const twoFactorMessage = document.getElementById("twoFactorMessage");
+const setupTwoFactorMessage = document.getElementById("setupTwoFactorMessage");
+const disableTwoFactorMessage = document.getElementById("disableTwoFactorMessage");
 
 const showRegister = document.getElementById("showRegister");
 const showLogin = document.getElementById("showLogin");
+const backToLogin = document.getElementById("backToLogin");
+const logoutBtn = document.getElementById("logoutBtn");
 
+let currentUser = null;
+let pendingTwoFactorSecret = null;
 
-// Alterna da tela de login para cadastro.
+// SEÇÃO DE NAVEGAÇÃO
+
 showRegister.addEventListener("click", () => {
     loginSection.classList.add("d-none");
     registerSection.classList.remove("d-none");
-
     loginMessage.innerHTML = "";
 });
 
-
-// Alterna da tela de cadastro para login.
 showLogin.addEventListener("click", () => {
     registerSection.classList.add("d-none");
     loginSection.classList.remove("d-none");
-
     registerMessage.innerHTML = "";
 });
 
+backToLogin.addEventListener("click", () => {
+    twoFactorSection.classList.add("d-none");
+    loginSection.classList.remove("d-none");
+    twoFactorMessage.innerHTML = "";
+    document.getElementById("twoFactorCode").value = "";
+});
 
-// Cadastro de usuário.
+logoutBtn.addEventListener("click", () => {
+    currentUser = null;
+    dashboardSection.classList.add("d-none");
+    loginSection.classList.remove("d-none");
+    loginForm.reset();
+    loginMessage.innerHTML = "";
+});
+
+// CADASTRO
+
 registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -80,8 +105,8 @@ registerForm.addEventListener("submit", async (event) => {
     }
 });
 
+// LOGIN
 
-// Login do usuário.
 loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -113,16 +138,270 @@ loginForm.addEventListener("submit", async (event) => {
             return;
         }
 
+        // Se requer 2FA, mostrar tela de verificação
+        if (data.requires_2fa) {
+            loginSection.classList.add("d-none");
+            twoFactorSection.classList.remove("d-none");
+            return;
+        }
+
+        // Caso contrário, login bem-sucedido
+        currentUser = data.user;
+        showDashboard();
+
+    } catch (error) {
         loginMessage.innerHTML = `
+            <div class="alert alert-danger">
+                Não foi possível conectar ao servidor.
+            </div>
+        `;
+    }
+});
+
+// VERIFICAÇÃO 2FA
+
+twoFactorForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    twoFactorMessage.innerHTML = "";
+
+    const code = document.getElementById("twoFactorCode").value;
+
+    try {
+        const response = await fetch("/auth/verify-2fa", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ code })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            twoFactorMessage.innerHTML = `
+                <div class="alert alert-danger">
+                    ${data.error}
+                </div>
+            `;
+            return;
+        }
+
+        currentUser = data.user;
+        showDashboard();
+
+    } catch (error) {
+        twoFactorMessage.innerHTML = `
+            <div class="alert alert-danger">
+                Não foi possível conectar ao servidor.
+            </div>
+        `;
+    }
+});
+
+// DASHBOARD E 2FA
+
+function showDashboard() {
+    loginSection.classList.add("d-none");
+    twoFactorSection.classList.add("d-none");
+    registerSection.classList.add("d-none");
+    dashboardSection.classList.remove("d-none");
+
+    // Exibir informações do usuário
+    const userInfo = document.getElementById("userInfo");
+    userInfo.innerHTML = `
+        <strong>Usuário:</strong> ${currentUser.username}<br>
+        <strong>E-mail:</strong> ${currentUser.email}
+    `;
+
+    // Carregar status de 2FA
+    loadTwoFactorStatus();
+}
+
+async function loadTwoFactorStatus() {
+    try {
+        const response = await fetch(`/auth/2fa/status?user_id=${currentUser.id}`);
+        const data = await response.json();
+
+        const statusDiv = document.getElementById("twoFactorStatus");
+        const setup2faSection = document.getElementById("setup2faSection");
+        const disable2faSection = document.getElementById("disable2faSection");
+
+        if (data.two_factor_enabled) {
+            statusDiv.innerHTML = `
+                <div class="alert alert-success">
+                    ✓ 2FA está <strong>ativado</strong>
+                </div>
+            `;
+            setup2faSection.classList.add("d-none");
+            disable2faSection.classList.remove("d-none");
+        } else {
+            statusDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    2FA não está ativado
+                </div>
+            `;
+            setup2faSection.classList.remove("d-none");
+            disable2faSection.classList.add("d-none");
+
+            // Se a seção de setup está visível, gerar novo QR code
+            const setupForm = setup2faSection.querySelector("form");
+            if (!setupForm.dataset.qrGenerated) {
+                generateTwoFactorQR();
+                setupForm.dataset.qrGenerated = "true";
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao carregar status 2FA:", error);
+    }
+}
+
+async function generateTwoFactorQR() {
+    try {
+        const response = await fetch("/auth/2fa/setup", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ user_id: currentUser.id })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            setupTwoFactorMessage.innerHTML = `
+                <div class="alert alert-danger">
+                    Erro ao gerar QR code: ${data.error}
+                </div>
+            `;
+            return;
+        }
+
+        // Armazenar o segredo temporário
+        pendingTwoFactorSecret = data.secret;
+
+        // Exibir QR code
+        const qrContainer = document.getElementById("qrCodeContainer");
+        qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code" style="max-width: 200px;">`;
+
+        // Exibir chave manual
+        const keyContainer = document.getElementById("manualKeyContainer");
+        keyContainer.textContent = data.manual_entry_key;
+
+    } catch (error) {
+        setupTwoFactorMessage.innerHTML = `
+            <div class="alert alert-danger">
+                Não foi possível conectar ao servidor.
+            </div>
+        `;
+    }
+}
+
+confirmTwoFactorForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    setupTwoFactorMessage.innerHTML = "";
+
+    const code = document.getElementById("setupTwoFactorCode").value;
+
+    if (!pendingTwoFactorSecret) {
+        setupTwoFactorMessage.innerHTML = `
+            <div class="alert alert-danger">
+                Segredo não foi gerado. Tente novamente.
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const response = await fetch("/auth/2fa/confirm", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                secret: pendingTwoFactorSecret,
+                code
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            setupTwoFactorMessage.innerHTML = `
+                <div class="alert alert-danger">
+                    ${data.error}
+                </div>
+            `;
+            return;
+        }
+
+        setupTwoFactorMessage.innerHTML = `
             <div class="alert alert-success">
                 ${data.message}
             </div>
         `;
 
-        loginForm.reset();
+        confirmTwoFactorForm.reset();
+        document.getElementById("setupTwoFactorCode").value = "";
+
+        // Recarregar status após 2 segundos
+        setTimeout(loadTwoFactorStatus, 2000);
 
     } catch (error) {
-        loginMessage.innerHTML = `
+        setupTwoFactorMessage.innerHTML = `
+            <div class="alert alert-danger">
+                Não foi possível conectar ao servidor.
+            </div>
+        `;
+    }
+});
+
+disableTwoFactorForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    disableTwoFactorMessage.innerHTML = "";
+
+    const password = document.getElementById("disableTwoFactorPassword").value;
+
+    try {
+        const response = await fetch("/auth/2fa/disable", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: currentUser.id,
+                password
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            disableTwoFactorMessage.innerHTML = `
+                <div class="alert alert-danger">
+                    ${data.error}
+                </div>
+            `;
+            return;
+        }
+
+        disableTwoFactorMessage.innerHTML = `
+            <div class="alert alert-success">
+                ${data.message}
+            </div>
+        `;
+
+        disableTwoFactorForm.reset();
+        document.getElementById("disableTwoFactorPassword").value = "";
+
+        // Recarregar status após 2 segundos
+        setTimeout(loadTwoFactorStatus, 2000);
+
+    } catch (error) {
+        disableTwoFactorMessage.innerHTML = `
             <div class="alert alert-danger">
                 Não foi possível conectar ao servidor.
             </div>
