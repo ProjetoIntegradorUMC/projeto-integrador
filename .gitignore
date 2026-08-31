@@ -1,0 +1,14 @@
+# Ambiente virtual Python
+.venv/
+
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Configurações do VS Code
+.vscode/
