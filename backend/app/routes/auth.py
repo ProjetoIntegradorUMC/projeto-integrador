@@ -4,7 +4,12 @@ from datetime import datetime, timedelta, timezone
 
 from app import db
 from app.models import User
-from app.utils.sessions import create_session, get_current_session, revoke_session, login_required
+from app.utils.sessions import (
+    create_session,
+    get_current_session,
+    revoke_session,
+    login_required,
+)
 from app.two_factor import (
     generate_totp_secret,
     get_provisioning_uri,
@@ -76,13 +81,18 @@ def login():
 
     # ---  PROTEÇÃO CONTRA FORÇA BRUTA ---
     now = datetime.now(timezone.utc)
-    
+
     # 1. Verifica se o usuário está bloqueado
     if user.locked_until and user.locked_until > now:
         minutos_restantes = (user.locked_until - now).seconds // 60
-        return jsonify({
-            "error": f"Conta bloqueada por segurança. Tente novamente em {minutos_restantes} minutos."
-        }), 423  # HTTP 423 Locked (Recurso trancado)
+        return (
+            jsonify(
+                {
+                    "error": f"Conta bloqueada por segurança. Tente novamente em {minutos_restantes} minutos."
+                }
+            ),
+            423,
+        )  # HTTP 423 Locked (Recurso trancado)
 
     password_valid = bcrypt.checkpw(
         password.encode("utf-8"), user.password_hash.encode("utf-8")
@@ -91,13 +101,20 @@ def login():
     if not password_valid:
         # 2. Se errou a senha, aumenta a contagem de tentativas
         user.failed_attempts += 1
-        
+
         # 3. Se errou 5 vezes seguidas, tranca a conta por 15 minutos
         if user.failed_attempts >= 5:
             user.locked_until = now + timedelta(minutes=15)
             db.session.commit()
-            return jsonify({"error": "Muitas tentativas falhas. Conta bloqueada por 15 minutos."}), 423
-            
+            return (
+                jsonify(
+                    {
+                        "error": "Muitas tentativas falhas. Conta bloqueada por 15 minutos."
+                    }
+                ),
+                423,
+            )
+
         db.session.commit()
         return jsonify({"error": "Credenciais inválidas"}), 401
 
@@ -112,32 +129,41 @@ def login():
         session["pending_user_id"] = user.id
         session.permanent = True
         session.permanent_session_lifetime = timedelta(minutes=5)
-        return jsonify({
-            "message": "Autenticação primária bem-sucedida. Aguardando validação de 2FA.",
-            "requires_2fa": True,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Autenticação primária bem-sucedida. Aguardando validação de 2FA.",
+                    "requires_2fa": True,
+                }
+            ),
+            200,
+        )
 
     # --- INÍCIO DA NOSSA CRIAÇÃO DE SESSÃO (Quando não tem 2FA) ---
     # Cria a sessão no banco usando a ferramenta que fizemos na Etapa 2
     session_obj = create_session(user.id)
-    
+
     # Prepara a resposta JSON
-    response = make_response(jsonify({
-        "message": "Login realizado com sucesso",
-        "user": {"id": user.id, "username": user.username, "email": user.email},
-        "requires_2fa": False,
-    }))
-    
-    # Seta o cookie contendo apenas o token opaco. 
+    response = make_response(
+        jsonify(
+            {
+                "message": "Login realizado com sucesso",
+                "user": {"id": user.id, "username": user.username, "email": user.email},
+                "requires_2fa": False,
+            }
+        )
+    )
+
+    # Seta o cookie contendo apenas o token opaco.
     # Segurança (XSS): httponly=True impede que o Javascript do navegador roube o cookie.
     response.set_cookie(
-        "session_id", 
-        session_obj.token, 
-        httponly=True, 
-        samesite="Lax", 
-        max_age=30 * 60  # Expira do navegador em 30 minutos (em segundos)
+        "session_id",
+        session_obj.token,
+        httponly=True,
+        samesite="Lax",
+        max_age=30 * 60,  # Expira do navegador em 30 minutos (em segundos)
     )
-    
+
     return response, 200
 
 
@@ -169,20 +195,20 @@ def verify_2fa():
 
     # --- INÍCIO DA NOSSA CRIAÇÃO DE SESSÃO (Quando passa pelo 2FA) ---
     session_obj = create_session(user.id)
-    
-    response = make_response(jsonify({
-        "message": "Login concluído com sucesso após validação de 2FA",
-        "user": {"id": user.id, "username": user.username, "email": user.email},
-    }))
-    
-    response.set_cookie(
-        "session_id", 
-        session_obj.token, 
-        httponly=True, 
-        samesite="Lax", 
-        max_age=30 * 60
+
+    response = make_response(
+        jsonify(
+            {
+                "message": "Login concluído com sucesso após validação de 2FA",
+                "user": {"id": user.id, "username": user.username, "email": user.email},
+            }
+        )
     )
-    
+
+    response.set_cookie(
+        "session_id", session_obj.token, httponly=True, samesite="Lax", max_age=30 * 60
+    )
+
     return response, 200
 
 
@@ -232,9 +258,7 @@ def confirm_2fa():
 
     if not user_id or not secret or not code:
         return (
-            jsonify(
-                {"error": "user_id, secret e code são obrigatórios"}
-            ),
+            jsonify({"error": "user_id, secret e code são obrigatórios"}),
             400,
         )
 
@@ -318,15 +342,15 @@ def logout(current_user):
     não possa mais ser reutilizado de forma maliciosa.
     """
     session_obj, _ = get_current_session()
-    
+
     # Invalida no lado do servidor (banco de dados)
     revoke_session(session_obj)
-    
+
     response = make_response(jsonify({"message": "Logout realizado com sucesso"}))
-    
+
     # Invalida no lado do cliente (navegador) sobrescrevendo o cookie para expirar no passado
     response.set_cookie("session_id", "", expires=0)
-    
+
     return response, 200
 
 
@@ -338,10 +362,15 @@ def get_me(current_user):
     Fundamental para o frontend saber se alguém está logado ao recarregar a página,
     sem precisar mandar a senha de novo.
     """
-    return jsonify({
-        "user": {
-            "id": current_user.id,
-            "username": current_user.username,
-            "email": current_user.email
-        }
-    }), 200
+    return (
+        jsonify(
+            {
+                "user": {
+                    "id": current_user.id,
+                    "username": current_user.username,
+                    "email": current_user.email,
+                }
+            }
+        ),
+        200,
+    )
