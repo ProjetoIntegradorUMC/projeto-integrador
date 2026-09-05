@@ -1,9 +1,11 @@
+import os
+
 from flask import Blueprint, request, jsonify, session, make_response
 import bcrypt
 from datetime import datetime, timedelta, timezone
 
 from app import db
-from app.models import User
+from app.models import User, PasswordResetToken
 from app.utils.sessions import (
     create_session,
     get_current_session,
@@ -16,6 +18,14 @@ from app.two_factor import (
     generate_qr_code,
     verify_totp_code,
 )
+
+from app.utils.password_reset import (
+    generate_reset_token,
+    hash_reset_token,
+    log_password_reset_event,
+)
+from app.utils.email import send_email
+
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -63,6 +73,209 @@ def register():
 
     return jsonify({"message": "Usuário cadastrado com sucesso"}), 201
 
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    """Inicia o processo de recuperação de senha por e-mail."""
+    data = request.get_json() or {}
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"error": "E-mail é obrigatório"}), 400
+
+    # Procura o usuário pelo e-mail informado.
+    user = User.query.filter_by(email=email).first()
+
+    # Se o e-mail não estiver cadastrado, não gera token nem envia e-mail.
+    if not user:
+        log_password_reset_event(
+            email=email,
+            event_type="failure",
+            failure_reason="email_not_found",
+        )
+
+        # Resposta genérica para não revelar informações sobre usuários cadastrados.
+        return jsonify(
+            {"message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."}
+        ), 200
+
+    # Gera um token criptograficamente seguro.
+    token = generate_reset_token()
+
+    # Apenas o hash do token é armazenado no banco.
+    token_hash = hash_reset_token(token)
+
+    # O token terá validade de 15 minutos.
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(minutes=15)
+
+    reset_token = PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        created_at=now,
+        expires_at=expires_at,
+    )
+
+    db.session.add(reset_token)
+    db.session.commit()
+
+    # O token original é enviado somente para o e-mail do usuário.
+    base_url = os.getenv("APP_BASE_URL", "http://localhost:5000")
+    reset_link = f"{base_url}/?token={token}"
+
+    email_body = f"""
+    Olá, {user.username}!
+
+    Recebemos uma solicitação para redefinir sua senha.
+
+    Acesse o link abaixo para continuar:
+
+    {reset_link}
+
+    Este link é válido por 15 minutos.
+
+    Se você não solicitou a recuperação de senha, ignore este e-mail.
+
+    Projeto Integrador
+    """
+
+    try:
+        send_email(
+            user.email,
+            "Recuperação de senha - Projeto Integrador",
+            email_body,
+        )
+    except Exception:
+        # Remove o token caso o envio do e-mail falhe.
+        db.session.delete(reset_token)
+        db.session.commit()
+
+        log_password_reset_event(
+            email=user.email,
+            event_type="failure",
+            user_id=user.id,
+            failure_reason="email_send_failed",
+            token_hash_suffix=token_hash[-16:],
+        )
+
+        return jsonify(
+            {"error": "Não foi possível enviar o e-mail de recuperação."}
+        ), 500
+
+    # Registra a solicitação bem-sucedida no log de auditoria.
+    log_password_reset_event(
+        email=user.email,
+        event_type="request",
+        user_id=user.id,
+        token_hash_suffix=token_hash[-16:],
+    )
+
+    return jsonify(
+        {"message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."}
+    ), 200
+
+@auth_bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    """Redefine a senha usando um token válido de recuperação."""
+    data = request.get_json() or {}
+
+    token = data.get("token")
+    new_password = data.get("new_password")
+
+    if not token or not new_password:
+        return jsonify({
+            "error": "Token e nova senha são obrigatórios."
+        }), 400
+
+    # Gera o hash do token recebido.
+    token_hash = hash_reset_token(token)
+
+    # Procura o token armazenado no banco.
+    reset_token = PasswordResetToken.query.filter_by(
+        token_hash=token_hash
+    ).first()
+
+    # Token inexistente.
+    if not reset_token:
+        log_password_reset_event(
+            email="unknown",
+            event_type="failure",
+            failure_reason="invalid_token",
+            token_hash_suffix=token_hash[-16:],
+        )
+
+        return jsonify({
+            "error": "Link de recuperação inválido ou expirado."
+        }), 400
+
+    now = datetime.now(timezone.utc)
+
+    # Token já utilizado.
+    if reset_token.used_at is not None:
+        log_password_reset_event(
+            email=reset_token.user.email,
+            event_type="failure",
+            user_id=reset_token.user_id,
+            failure_reason="token_already_used",
+            token_hash_suffix=token_hash[-16:],
+        )
+
+        return jsonify({
+            "error": "Link de recuperação inválido ou expirado."
+        }), 400
+
+    # Token expirado.
+    if reset_token.expires_at <= now:
+        log_password_reset_event(
+            email=reset_token.user.email,
+            event_type="failure",
+            user_id=reset_token.user_id,
+            failure_reason="token_expired",
+            token_hash_suffix=token_hash[-16:],
+        )
+
+        return jsonify({
+            "error": "Link de recuperação inválido ou expirado."
+        }), 400
+
+    # Procura o usuário relacionado ao token.
+    user = User.query.get(reset_token.user_id)
+
+    if not user:
+        log_password_reset_event(
+            email="unknown",
+            event_type="failure",
+            failure_reason="user_not_found",
+            token_hash_suffix=token_hash[-16:],
+        )
+
+        return jsonify({
+            "error": "Não foi possível redefinir a senha."
+        }), 400
+
+    # Gera o hash bcrypt da nova senha.
+    password_hash = bcrypt.hashpw(
+        new_password.encode("utf-8"),
+        bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
+    ).decode("utf-8")
+
+    user.password_hash = password_hash
+
+    # Marca o token como utilizado.
+    reset_token.used_at = now
+
+    db.session.commit()
+
+    # Registra a redefinição bem-sucedida.
+    log_password_reset_event(
+        email=user.email,
+        event_type="success",
+        user_id=user.id,
+        token_hash_suffix=token_hash[-16:],
+    )
+
+    return jsonify({
+        "message": "Senha redefinida com sucesso."
+    }), 200
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
