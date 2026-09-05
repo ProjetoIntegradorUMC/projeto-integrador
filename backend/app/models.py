@@ -57,3 +57,36 @@ class Session(db.Model):
     user = db.relationship(
         "User", backref=db.backref("sessions", lazy=True, cascade="all, delete")
     )
+
+
+class PasswordResetLog(db.Model):
+    __tablename__ = "password_reset_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Email envolvido na operação (para auditar mesmo se user for deletado)
+    email = db.Column(db.String(120), nullable=False, index=True)
+
+    # User ID se disponível (pode ser nulo em casos de tentativa com email inexistente)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    # Tipo de evento: 'request' (solicitação), 'success' (sucesso), 'failure' (falha)
+    event_type = db.Column(db.String(20), nullable=False, index=True)
+
+    # Motivo em caso de falha: 'token_expired', 'token_invalid', 'token_already_used', etc.
+    failure_reason = db.Column(db.String(100), nullable=True)
+
+    # Hash truncado do token para auditoria (últimos 8 chars do hash do token)
+    # Permite rastrear qual token foi usado sem expor o token completo.
+    token_hash_suffix = db.Column(db.String(16), nullable=True)
+
+    # Data e hora do evento
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
+    # Relacionamento prático
+    user = db.relationship("User", backref=db.backref("password_reset_logs", lazy=True))

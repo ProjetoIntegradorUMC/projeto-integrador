@@ -61,7 +61,7 @@ def create_app():
 
     db.init_app(app)
 
-    from app.models import User
+    from app.models import User, Session, PasswordResetLog
 
     with app.app_context():
         db.create_all()
