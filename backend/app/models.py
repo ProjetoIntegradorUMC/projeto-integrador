@@ -68,7 +68,9 @@ class PasswordResetLog(db.Model):
     email = db.Column(db.String(120), nullable=False, index=True)
 
     # User ID se disponível (pode ser nulo em casos de tentativa com email inexistente)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Tipo de evento: 'request' (solicitação), 'success' (sucesso), 'failure' (falha)
     event_type = db.Column(db.String(20), nullable=False, index=True)
@@ -90,6 +92,7 @@ class PasswordResetLog(db.Model):
 
     # Relacionamento prático
     user = db.relationship("User", backref=db.backref("password_reset_logs", lazy=True))
+
 
 class PasswordResetToken(db.Model):
     __tablename__ = "password_reset_tokens"

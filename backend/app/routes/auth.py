@@ -26,7 +26,6 @@ from app.utils.password_reset import (
 )
 from app.utils.email import send_email
 
-
 auth_bp = Blueprint("auth", __name__)
 
 # bcrypt foi escolhido por gerenciar a geração e o armazenamento do salt
@@ -73,6 +72,7 @@ def register():
 
     return jsonify({"message": "Usuário cadastrado com sucesso"}), 201
 
+
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
     """Inicia o processo de recuperação de senha por e-mail."""
@@ -94,9 +94,14 @@ def forgot_password():
         )
 
         # Resposta genérica para não revelar informações sobre usuários cadastrados.
-        return jsonify(
-            {"message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."}
-        ), 200
+        return (
+            jsonify(
+                {
+                    "message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."
+                }
+            ),
+            200,
+        )
 
     # Gera um token criptograficamente seguro.
     token = generate_reset_token()
@@ -157,9 +162,10 @@ def forgot_password():
             token_hash_suffix=token_hash[-16:],
         )
 
-        return jsonify(
-            {"error": "Não foi possível enviar o e-mail de recuperação."}
-        ), 500
+        return (
+            jsonify({"error": "Não foi possível enviar o e-mail de recuperação."}),
+            500,
+        )
 
     # Registra a solicitação bem-sucedida no log de auditoria.
     log_password_reset_event(
@@ -169,9 +175,15 @@ def forgot_password():
         token_hash_suffix=token_hash[-16:],
     )
 
-    return jsonify(
-        {"message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."}
-    ), 200
+    return (
+        jsonify(
+            {
+                "message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."
+            }
+        ),
+        200,
+    )
+
 
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
@@ -182,17 +194,13 @@ def reset_password():
     new_password = data.get("new_password")
 
     if not token or not new_password:
-        return jsonify({
-            "error": "Token e nova senha são obrigatórios."
-        }), 400
+        return jsonify({"error": "Token e nova senha são obrigatórios."}), 400
 
     # Gera o hash do token recebido.
     token_hash = hash_reset_token(token)
 
     # Procura o token armazenado no banco.
-    reset_token = PasswordResetToken.query.filter_by(
-        token_hash=token_hash
-    ).first()
+    reset_token = PasswordResetToken.query.filter_by(token_hash=token_hash).first()
 
     # Token inexistente.
     if not reset_token:
@@ -203,9 +211,7 @@ def reset_password():
             token_hash_suffix=token_hash[-16:],
         )
 
-        return jsonify({
-            "error": "Link de recuperação inválido ou expirado."
-        }), 400
+        return jsonify({"error": "Link de recuperação inválido ou expirado."}), 400
 
     now = datetime.now(timezone.utc)
 
@@ -219,9 +225,7 @@ def reset_password():
             token_hash_suffix=token_hash[-16:],
         )
 
-        return jsonify({
-            "error": "Link de recuperação inválido ou expirado."
-        }), 400
+        return jsonify({"error": "Link de recuperação inválido ou expirado."}), 400
 
     # Token expirado.
     if reset_token.expires_at <= now:
@@ -233,9 +237,7 @@ def reset_password():
             token_hash_suffix=token_hash[-16:],
         )
 
-        return jsonify({
-            "error": "Link de recuperação inválido ou expirado."
-        }), 400
+        return jsonify({"error": "Link de recuperação inválido ou expirado."}), 400
 
     # Procura o usuário relacionado ao token.
     user = User.query.get(reset_token.user_id)
@@ -248,14 +250,11 @@ def reset_password():
             token_hash_suffix=token_hash[-16:],
         )
 
-        return jsonify({
-            "error": "Não foi possível redefinir a senha."
-        }), 400
+        return jsonify({"error": "Não foi possível redefinir a senha."}), 400
 
     # Gera o hash bcrypt da nova senha.
     password_hash = bcrypt.hashpw(
-        new_password.encode("utf-8"),
-        bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
+        new_password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
     ).decode("utf-8")
 
     user.password_hash = password_hash
@@ -273,9 +272,8 @@ def reset_password():
         token_hash_suffix=token_hash[-16:],
     )
 
-    return jsonify({
-        "message": "Senha redefinida com sucesso."
-    }), 200
+    return jsonify({"message": "Senha redefinida com sucesso."}), 200
+
 
 @auth_bp.route("/login", methods=["POST"])
 def login():

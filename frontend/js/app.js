@@ -73,7 +73,7 @@ logoutBtn.addEventListener("click", async () => {
     } catch (error) {
         console.error("Erro ao fazer logout no servidor:", error);
     }
-    
+
     // 2. Limpa o estado no frontend e volta pra tela de login
     currentUser = null;
     dashboardSection.classList.add("d-none");
