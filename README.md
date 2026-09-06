@@ -25,7 +25,12 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **Proteção contra Força Bruta** (Time-Lock de 15 minutos).
 - **Autenticação de Dois Fatores (2FA)** via TOTP.
 
-👉 **[Ler a Documentação Técnica de Autenticação e Sessão](docs/autenticacao.md)**
+---
+
+##  Documentação
+
+- **[Ler a Documentação Técnica de Autenticação e Sessão ](docs/autenticacao.md)**
+- **[Ler a Documentação Técnica de Recuperação de Senha ](docs/recuperacao-senha.md)**
 
 ---
 
