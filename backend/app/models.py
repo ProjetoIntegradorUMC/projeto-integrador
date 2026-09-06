@@ -68,7 +68,9 @@ class PasswordResetLog(db.Model):
     email = db.Column(db.String(120), nullable=False, index=True)
 
     # User ID se disponível (pode ser nulo em casos de tentativa com email inexistente)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Tipo de evento: 'request' (solicitação), 'success' (sucesso), 'failure' (falha)
     event_type = db.Column(db.String(20), nullable=False, index=True)
@@ -90,3 +92,56 @@ class PasswordResetLog(db.Model):
 
     # Relacionamento prático
     user = db.relationship("User", backref=db.backref("password_reset_logs", lazy=True))
+
+
+class PasswordResetToken(db.Model):
+    __tablename__ = "password_reset_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Usuário ao qual o token pertence.
+    # Se o usuário for excluído, os tokens também serão removidos.
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Armazenamos somente o hash do token, nunca o token original.
+    # Isso evita que um vazamento do banco exponha tokens utilizáveis.
+    token_hash = db.Column(
+        db.String(64),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    # Data e hora em que o token foi criado.
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # O token será válido por apenas 15 minutos.
+    expires_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+    )
+
+    # Preenchido quando o token for utilizado.
+    # Enquanto estiver vazio, o token ainda não foi utilizado.
+    used_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Relacionamento com o usuário.
+    user = db.relationship(
+        "User",
+        backref=db.backref(
+            "password_reset_tokens",
+            lazy=True,
+            cascade="all, delete",
+        ),
+    )

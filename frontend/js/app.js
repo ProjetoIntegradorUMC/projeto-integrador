@@ -3,23 +3,31 @@ const loginSection = document.getElementById("loginSection");
 const registerSection = document.getElementById("registerSection");
 const twoFactorSection = document.getElementById("twoFactorSection");
 const dashboardSection = document.getElementById("dashboardSection");
+const forgotPasswordSection = document.getElementById("forgotPasswordSection");
+const resetPasswordSection = document.getElementById("resetPasswordSection");
 
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
 const twoFactorForm = document.getElementById("twoFactorForm");
 const confirmTwoFactorForm = document.getElementById("confirmTwoFactorForm");
 const disableTwoFactorForm = document.getElementById("disableTwoFactorForm");
+const forgotPasswordForm = document.getElementById("forgotPasswordForm");
+const resetPasswordForm = document.getElementById("resetPasswordForm");
 
 const loginMessage = document.getElementById("loginMessage");
 const registerMessage = document.getElementById("registerMessage");
 const twoFactorMessage = document.getElementById("twoFactorMessage");
 const setupTwoFactorMessage = document.getElementById("setupTwoFactorMessage");
 const disableTwoFactorMessage = document.getElementById("disableTwoFactorMessage");
+const forgotPasswordMessage = document.getElementById("forgotPasswordMessage");
+const resetPasswordMessage = document.getElementById("resetPasswordMessage");
 
 const showRegister = document.getElementById("showRegister");
 const showLogin = document.getElementById("showLogin");
 const backToLogin = document.getElementById("backToLogin");
 const logoutBtn = document.getElementById("logoutBtn");
+const showForgotPassword = document.getElementById("showForgotPassword");
+const backToLoginFromForgotPassword = document.getElementById("backToLoginFromForgotPassword");
 
 let currentUser = null;
 let pendingTwoFactorSecret = null;
@@ -32,10 +40,23 @@ showRegister.addEventListener("click", () => {
     loginMessage.innerHTML = "";
 });
 
+showForgotPassword.addEventListener("click", () => {
+    loginSection.classList.add("d-none");
+    forgotPasswordSection.classList.remove("d-none");
+    loginMessage.innerHTML = "";
+});
+
 showLogin.addEventListener("click", () => {
     registerSection.classList.add("d-none");
     loginSection.classList.remove("d-none");
     registerMessage.innerHTML = "";
+});
+
+backToLoginFromForgotPassword.addEventListener("click", () => {
+    forgotPasswordSection.classList.add("d-none");
+    loginSection.classList.remove("d-none");
+    forgotPasswordMessage.innerHTML = "";
+    forgotPasswordForm.reset();
 });
 
 backToLogin.addEventListener("click", () => {
@@ -52,7 +73,7 @@ logoutBtn.addEventListener("click", async () => {
     } catch (error) {
         console.error("Erro ao fazer logout no servidor:", error);
     }
-    
+
     // 2. Limpa o estado no frontend e volta pra tela de login
     currentUser = null;
     dashboardSection.classList.add("d-none");
@@ -106,6 +127,137 @@ registerForm.addEventListener("submit", async (event) => {
 
     } catch (error) {
         registerMessage.innerHTML = `
+            <div class="alert alert-danger">
+                Não foi possível conectar ao servidor.
+            </div>
+        `;
+    }
+});
+
+// RECUPERAÇÃO DE SENHA
+
+forgotPasswordForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    forgotPasswordMessage.innerHTML = "";
+
+    const email = document.getElementById("forgotPasswordEmail").value;
+
+    try {
+        const response = await fetch("/auth/forgot-password", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                email
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            forgotPasswordMessage.innerHTML = `
+                <div class="alert alert-danger">
+                    ${data.error}
+                </div>
+            `;
+            return;
+        }
+
+        forgotPasswordMessage.innerHTML = `
+            <div class="alert alert-success">
+                ${data.message}
+            </div>
+        `;
+
+        forgotPasswordForm.reset();
+
+    } catch (error) {
+        forgotPasswordMessage.innerHTML = `
+            <div class="alert alert-danger">
+                Não foi possível conectar ao servidor.
+            </div>
+        `;
+    }
+});
+
+// REDEFINIÇÃO DE SENHA
+
+resetPasswordForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    resetPasswordMessage.innerHTML = "";
+
+    const newPassword = document.getElementById("resetPassword").value;
+    const confirmPassword = document.getElementById("resetPasswordConfirm").value;
+
+    // Verifica se as senhas são iguais.
+    if (newPassword !== confirmPassword) {
+        resetPasswordMessage.innerHTML = `
+            <div class="alert alert-danger">
+                As senhas não coincidem.
+            </div>
+        `;
+        return;
+    }
+
+    // Recupera o token enviado no link do e-mail.
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+
+    if (!token) {
+        resetPasswordMessage.innerHTML = `
+            <div class="alert alert-danger">
+                Link de recuperação inválido.
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const response = await fetch("/auth/reset-password", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                token,
+                new_password: newPassword
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            resetPasswordMessage.innerHTML = `
+                <div class="alert alert-danger">
+                    ${data.error}
+                </div>
+            `;
+            return;
+        }
+
+        resetPasswordMessage.innerHTML = `
+            <div class="alert alert-success">
+                ${data.message}
+            </div>
+        `;
+
+        resetPasswordForm.reset();
+
+        // Remove o token da URL.
+        window.history.replaceState({}, document.title, "/");
+
+        // Depois de 2 segundos, volta para o login.
+        setTimeout(() => {
+            resetPasswordSection.classList.add("d-none");
+            loginSection.classList.remove("d-none");
+            resetPasswordMessage.innerHTML = "";
+        }, 2000);
+
+    } catch (error) {
+        resetPasswordMessage.innerHTML = `
             <div class="alert alert-danger">
                 Não foi possível conectar ao servidor.
             </div>
@@ -417,11 +569,27 @@ disableTwoFactorForm.addEventListener("submit", async (event) => {
     }
 });
 
-
-// Verifica se já existe um cookie válido no navegador
 window.addEventListener("DOMContentLoaded", async () => {
+    // Verifica se a página foi aberta através de um link de recuperação.
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+
+    if (token) {
+        // Se existe token, mostra diretamente a tela de redefinição.
+        loginSection.classList.add("d-none");
+        registerSection.classList.add("d-none");
+        forgotPasswordSection.classList.add("d-none");
+        twoFactorSection.classList.add("d-none");
+        dashboardSection.classList.add("d-none");
+        resetPasswordSection.classList.remove("d-none");
+
+        return;
+    }
+
+    // Caso contrário, verifica se já existe um cookie de sessão válido.
     try {
         const response = await fetch("/auth/me");
+
         if (response.ok) {
             const data = await response.json();
             currentUser = data.user;
