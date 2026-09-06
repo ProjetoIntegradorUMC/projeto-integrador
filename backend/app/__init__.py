@@ -61,7 +61,8 @@ def create_app():
 
     db.init_app(app)
 
-    from app.models import User, Session, PasswordResetLog
+    # Importando os modelos para que o SQLAlchemy os reconheça
+    import app.models as models
 
     with app.app_context():
         db.create_all()
