@@ -604,12 +604,6 @@ def get_me(current_user):
                         else None
                     ),
                     "consent_version": current_user.consent_version,
-                    "consent_revoked_at": (
-                        current_user.consent_revoked_at.isoformat()
-                        if current_user.consent_revoked_at
-                        else None
-                    ),
-                    "consent_active": current_user.consent_revoked_at is None,
                 }
             }
         ),
@@ -621,12 +615,14 @@ def get_me(current_user):
 @login_required
 def revoke_consent(current_user):
     """
-    Registra a revogação do consentimento do usuário.
-    O registro original do consentimento é mantido para preservar
-    a evidência de quando e qual versão do termo foi aceita.
+    Revogar o consentimento implica excluir permanentemente a conta.
     """
-    current_user.consent_revoked_at = datetime.now(timezone.utc)
-
+    db.session.delete(current_user)
     db.session.commit()
 
-    return jsonify({"message": "Consentimento revogado com sucesso"}), 200
+    response = make_response(
+        jsonify({"message": "Consentimento revogado e conta excluída com sucesso"})
+    )
+    response.set_cookie("session_id", "", expires=0)
+
+    return response, 200

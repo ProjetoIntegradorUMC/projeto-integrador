@@ -11,7 +11,6 @@ class User(db.Model):
     full_name = db.Column(db.String(150), nullable=False)
     consent_given_at = db.Column(db.DateTime, nullable=False)
     consent_version = db.Column(db.String(20), nullable=False)
-    consent_revoked_at = db.Column(db.DateTime, nullable=True)
     email = db.Column(db.String(120), nullable=False, unique=True)
     # 255 caracteres é mais que suficiente para um hash bcrypt (~60 chars),
     # com folga para eventual migração futura para Argon2, que gera hashes
@@ -44,7 +43,12 @@ class TutoringOffer(db.Model):
     status = db.Column(db.String(20), nullable=False, default="available")
 
     mentor = db.relationship(
-        "User", backref=db.backref("tutoring_offers", lazy=True)
+        "User",
+        backref=db.backref(
+            "tutoring_offers",
+            lazy=True,
+            cascade="all, delete",
+        ),
     )
 
 
@@ -71,9 +75,21 @@ class Enrollment(db.Model):
     status = db.Column(db.String(20), nullable=False, default="active")
 
     # A inscrição liga o usuário à oferta de monitoria escolhida.
-    user = db.relationship("User", backref=db.backref("enrollments", lazy=True))
+    user = db.relationship(
+        "User",
+        backref=db.backref(
+            "enrollments",
+            lazy=True,
+            cascade="all, delete",
+        ),
+    )
     tutoring_offer = db.relationship(
-        "TutoringOffer", backref=db.backref("enrollments", lazy=True)
+        "TutoringOffer",
+        backref=db.backref(
+            "enrollments",
+            lazy=True,
+            cascade="all, delete",
+        ),
     )
 
 
@@ -142,7 +158,14 @@ class PasswordResetLog(db.Model):
     )
 
     # Relacionamento prático
-    user = db.relationship("User", backref=db.backref("password_reset_logs", lazy=True))
+    user = db.relationship(
+        "User",
+        backref=db.backref(
+            "password_reset_logs",
+            lazy=True,
+            passive_deletes=True,
+        ),
+    )
 
 
 class PasswordResetToken(db.Model):
