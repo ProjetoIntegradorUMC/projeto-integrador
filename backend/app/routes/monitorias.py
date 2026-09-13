@@ -17,7 +17,7 @@ def serialize_monitoria(monitoria):
         "status": monitoria.status,
         "monitor": {
             "id": monitoria.monitor.id,
-            "username": monitoria.monitor.username,
+            "full_name": monitoria.monitor.full_name,
         },
     }
 

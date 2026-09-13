@@ -41,12 +41,13 @@ BCRYPT_ROUNDS = 12
 def register():
     data = request.get_json()
 
+    full_name = data.get("full_name")
     username = data.get("username")
     email = data.get("email")
     password = data.get("password")
 
-    if not username or not email or not password:
-        return jsonify({"error": "username, email e password são obrigatórios"}), 400
+    if not username or not email or not password or not full_name:
+        return jsonify({"error": "Todos os campos são obrigatórios"}), 400
 
     existing_user = User.query.filter(
         (User.username == username) | (User.email == email)
@@ -64,7 +65,10 @@ def register():
     )
 
     user = User(
-        username=username, email=email, password_hash=password_hash.decode("utf-8")
+        full_name=full_name,
+        username=username,
+        email=email,
+        password_hash=password_hash.decode("utf-8")
     )
 
     db.session.add(user)
@@ -359,7 +363,12 @@ def login():
         jsonify(
             {
                 "message": "Login realizado com sucesso",
-                "user": {"id": user.id, "username": user.username, "email": user.email},
+                "user": {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "username": user.username,
+                    "email": user.email,
+                },
                 "requires_2fa": False,
             }
         )
@@ -411,7 +420,12 @@ def verify_2fa():
         jsonify(
             {
                 "message": "Login concluído com sucesso após validação de 2FA",
-                "user": {"id": user.id, "username": user.username, "email": user.email},
+                "user": {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "username": user.username,
+                    "email": user.email,
+                },
             }
         )
     )
@@ -578,6 +592,7 @@ def get_me(current_user):
             {
                 "user": {
                     "id": current_user.id,
+                    "full_name": current_user.full_name,
                     "username": current_user.username,
                     "email": current_user.email,
                 }

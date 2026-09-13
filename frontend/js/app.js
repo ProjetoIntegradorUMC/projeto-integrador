@@ -96,7 +96,7 @@ function renderMonitoriaCard(monitoria, action = "") {
             <div class="card-body">
                 <h6 class="card-title">${monitoria.disciplina}</h6>
                 <p class="card-text mb-2">${monitoria.descricao}</p>
-                <small class="text-muted">Monitor: ${monitoria.monitor.username}</small>
+                <small class="text-muted">Monitor: ${monitoria.monitor.full_name}</small>
                 ${actionButton}
             </div>
         </div>
@@ -203,6 +203,7 @@ registerForm.addEventListener("submit", async (event) => {
 
     registerMessage.innerHTML = "";
 
+    const fullName = document.getElementById("registerFullName").value;
     const username = document.getElementById("registerUsername").value;
     const email = document.getElementById("registerEmail").value;
     const password = document.getElementById("registerPassword").value;
@@ -214,6 +215,7 @@ registerForm.addEventListener("submit", async (event) => {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
+                full_name: fullName,
                 username,
                 email,
                 password
@@ -484,6 +486,7 @@ function showDashboard() {
     // Exibir informações do usuário
     const userInfo = document.getElementById("userInfo");
     userInfo.innerHTML = `
+        <strong>Nome completo:</strong> ${currentUser.full_name}<br>
         <strong>Usuário:</strong> ${currentUser.username}<br>
         <strong>E-mail:</strong> ${currentUser.email}
     `;
