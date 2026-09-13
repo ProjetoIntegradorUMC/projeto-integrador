@@ -290,6 +290,7 @@ registerForm.addEventListener("submit", async (event) => {
     const username = document.getElementById("registerUsername").value;
     const email = document.getElementById("registerEmail").value;
     const password = document.getElementById("registerPassword").value;
+    const consentGiven = document.getElementById("consent").checked;
 
     try {
         const response = await fetch("/auth/register", {
@@ -301,7 +302,8 @@ registerForm.addEventListener("submit", async (event) => {
                 full_name: fullName,
                 username,
                 email,
-                password
+                password,
+                consent_given: consentGiven
             })
         });
 
@@ -578,6 +580,55 @@ function showDashboard() {
         <strong>E-mail:</strong> ${currentUser.email}
     `;
 
+    const consentStatus = document.getElementById("consentStatus");
+    const revokeConsentBtn = document.getElementById("revokeConsentBtn");
+
+    if (currentUser.consent_active) {
+        consentStatus.innerHTML = `
+        <span class="text-success">
+            ✓ Consentimento ativo
+        </span>
+    `;
+        revokeConsentBtn.classList.remove("d-none");
+    } else {
+        consentStatus.innerHTML = `
+        <span class="text-danger">
+            ✕ Consentimento revogado
+        </span>
+    `;
+        revokeConsentBtn.classList.add("d-none");
+    }
+
+    revokeConsentBtn.addEventListener("click", async () => {
+        try {
+            const response = await fetch("/auth/consent/revoke", {
+                method: "POST"
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.error || "Não foi possível revogar o consentimento.");
+                return;
+            }
+
+            currentUser.consent_active = false;
+            currentUser.consent_revoked_at = new Date().toISOString();
+
+            consentStatus.innerHTML = `
+            <span class="text-danger">
+                ✕ Consentimento revogado
+            </span>
+        `;
+
+            revokeConsentBtn.classList.add("d-none");
+
+            alert(data.message);
+
+        } catch (error) {
+            alert("Não foi possível conectar ao servidor.");
+        }
+    });
     // Carregar status de 2FA
     loadTwoFactorStatus();
     loadTutoringOffers();
