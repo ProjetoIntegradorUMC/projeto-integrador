@@ -68,8 +68,10 @@ def create_app():
         db.create_all()
 
     from app.routes.auth import auth_bp
+    from app.routes.monitorias import monitorias_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(monitorias_bp, url_prefix="/monitorias")
 
     frontend_path = project_root / "frontend"
 

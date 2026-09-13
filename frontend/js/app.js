@@ -13,6 +13,7 @@ const confirmTwoFactorForm = document.getElementById("confirmTwoFactorForm");
 const disableTwoFactorForm = document.getElementById("disableTwoFactorForm");
 const forgotPasswordForm = document.getElementById("forgotPasswordForm");
 const resetPasswordForm = document.getElementById("resetPasswordForm");
+const offerMonitoriaForm = document.getElementById("offerMonitoriaForm");
 
 const loginMessage = document.getElementById("loginMessage");
 const registerMessage = document.getElementById("registerMessage");
@@ -21,6 +22,7 @@ const setupTwoFactorMessage = document.getElementById("setupTwoFactorMessage");
 const disableTwoFactorMessage = document.getElementById("disableTwoFactorMessage");
 const forgotPasswordMessage = document.getElementById("forgotPasswordMessage");
 const resetPasswordMessage = document.getElementById("resetPasswordMessage");
+const offerMonitoriaMessage = document.getElementById("offerMonitoriaMessage");
 
 const showRegister = document.getElementById("showRegister");
 const showLogin = document.getElementById("showLogin");
@@ -80,6 +82,118 @@ logoutBtn.addEventListener("click", async () => {
     loginSection.classList.remove("d-none");
     loginForm.reset();
     loginMessage.innerHTML = "";
+});
+
+function renderMonitoriaCard(monitoria, action = "") {
+    const actionButton = action
+        ? `<button class="btn btn-primary btn-sm enroll-monitoria" data-monitoria-id="${monitoria.id}">
+                Inscrever-se
+           </button>`
+        : "";
+
+    return `
+        <div class="card mb-2">
+            <div class="card-body">
+                <h6 class="card-title">${monitoria.disciplina}</h6>
+                <p class="card-text mb-2">${monitoria.descricao}</p>
+                <small class="text-muted">Monitor: ${monitoria.monitor.username}</small>
+                ${actionButton}
+            </div>
+        </div>
+    `;
+}
+
+function renderEmptyMessage(message) {
+    return `<p class="text-muted">${message}</p>`;
+}
+
+async function loadMonitorias() {
+    const availableContainer = document.getElementById("availableMonitorias");
+    const offeredContainer = document.getElementById("offeredMonitorias");
+    const enrolledContainer = document.getElementById("enrolledMonitorias");
+
+    try {
+        const [availableResponse, mineResponse] = await Promise.all([
+            fetch("/monitorias"),
+            fetch("/monitorias/minhas")
+        ]);
+        const availableData = await availableResponse.json();
+        const mineData = await mineResponse.json();
+
+        if (!availableResponse.ok || !mineResponse.ok) {
+            throw new Error(availableData.error || mineData.error);
+        }
+
+        availableContainer.innerHTML = availableData.monitorias.length
+            ? availableData.monitorias.map(item => renderMonitoriaCard(item, "enroll")).join("")
+            : renderEmptyMessage("Nenhuma monitoria disponível no momento.");
+        offeredContainer.innerHTML = mineData.oferecidas.length
+            ? mineData.oferecidas.map(item => renderMonitoriaCard(item)).join("")
+            : renderEmptyMessage("Você ainda não ofereceu uma monitoria.");
+        enrolledContainer.innerHTML = mineData.inscricoes.length
+            ? mineData.inscricoes.map(item => renderMonitoriaCard(item.monitoria)).join("")
+            : renderEmptyMessage("Você ainda não está inscrito em uma monitoria.");
+    } catch (error) {
+        availableContainer.innerHTML = `
+            <div class="alert alert-danger">Não foi possível carregar as monitorias.</div>
+        `;
+    }
+}
+
+offerMonitoriaForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    offerMonitoriaMessage.innerHTML = "";
+
+    try {
+        const response = await fetch("/monitorias", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                disciplina: document.getElementById("monitoriaDisciplina").value,
+                descricao: document.getElementById("monitoriaDescricao").value
+            })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            offerMonitoriaMessage.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            return;
+        }
+
+        offerMonitoriaMessage.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+        offerMonitoriaForm.reset();
+        loadMonitorias();
+    } catch (error) {
+        offerMonitoriaMessage.innerHTML = `
+            <div class="alert alert-danger">Não foi possível conectar ao servidor.</div>
+        `;
+    }
+});
+
+document.getElementById("availableMonitorias").addEventListener("click", async (event) => {
+    const button = event.target.closest(".enroll-monitoria");
+    if (!button) {
+        return;
+    }
+
+    button.disabled = true;
+    try {
+        const response = await fetch(`/monitorias/${button.dataset.monitoriaId}/inscricoes`, {
+            method: "POST"
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.error);
+            button.disabled = false;
+            return;
+        }
+
+        loadMonitorias();
+    } catch (error) {
+        alert("Não foi possível conectar ao servidor.");
+        button.disabled = false;
+    }
 });
 
 // CADASTRO
@@ -376,6 +490,7 @@ function showDashboard() {
 
     // Carregar status de 2FA
     loadTwoFactorStatus();
+    loadMonitorias();
 }
 
 async function loadTwoFactorStatus() {

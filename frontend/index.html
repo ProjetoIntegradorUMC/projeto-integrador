@@ -203,6 +203,39 @@
 
                     <div id="userInfo" class="mb-4 p-3 bg-light rounded"></div>
 
+                    <div class="mb-4">
+                        <h5>Oferecer monitoria</h5>
+                        <form id="offerMonitoriaForm" class="card p-3">
+                            <div class="mb-2">
+                                <label for="monitoriaDisciplina" class="form-label">Disciplina</label>
+                                <input type="text" class="form-control" id="monitoriaDisciplina" required>
+                            </div>
+
+                            <div class="mb-2">
+                                <label for="monitoriaDescricao" class="form-label">Descrição</label>
+                                <textarea class="form-control" id="monitoriaDescricao" rows="3" required></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-success">Oferecer monitoria</button>
+                            <div id="offerMonitoriaMessage" class="mt-2"></div>
+                        </form>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Monitorias disponíveis</h5>
+                        <div id="availableMonitorias"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Minhas monitorias oferecidas</h5>
+                        <div id="offeredMonitorias"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Minhas inscrições</h5>
+                        <div id="enrolledMonitorias"></div>
+                    </div>
+
                     <!-- 2FA Setup -->
                     <div class="mb-4">
                         <h5>Autenticação de Dois Fatores (2FA)</h5>

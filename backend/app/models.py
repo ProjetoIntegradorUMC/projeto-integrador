@@ -1,5 +1,6 @@
 from app import db
 from datetime import datetime, timezone
+from sqlalchemy import UniqueConstraint
 
 
 class User(db.Model):
@@ -24,6 +25,47 @@ class User(db.Model):
     # Armazena até quando o usuário está bloqueado. Bloqueio por tempo é mais
     # seguro que bloqueio definitivo para mitigar negação de serviço (DoS) direcionada.
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+
+
+class Monitoria(db.Model):
+    __tablename__ = "monitoria"
+
+    id = db.Column(db.Integer, primary_key=True)
+    monitor_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    disciplina = db.Column(db.String(120), nullable=False)
+    descricao = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="disponivel")
+
+    # A monitoria pertence ao aluno que a ofereceu; inscrições ficam separadas.
+    monitor = db.relationship(
+        "User", backref=db.backref("monitorias_oferecidas", lazy=True)
+    )
+
+
+class Inscricao(db.Model):
+    __tablename__ = "inscricao"
+    __table_args__ = (
+        UniqueConstraint("usuario_id", "monitoria_id", name="uq_inscricao_usuario_monitoria"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    monitoria_id = db.Column(
+        db.Integer, db.ForeignKey("monitoria.id", ondelete="CASCADE"), nullable=False
+    )
+    status = db.Column(db.String(20), nullable=False, default="ativa")
+
+    # A inscrição liga um aluno mentorado a uma oferta específica.
+    usuario = db.relationship(
+        "User", backref=db.backref("inscricoes", lazy=True)
+    )
+    monitoria = db.relationship(
+        "Monitoria", backref=db.backref("inscricoes", lazy=True)
+    )
 
 
 # NOVO MODELO: Gestão de Sessão (Issue #3)
