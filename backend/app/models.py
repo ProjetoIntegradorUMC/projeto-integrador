@@ -1,5 +1,6 @@
 from app import db
 from datetime import datetime, timezone
+from sqlalchemy import UniqueConstraint
 
 
 class User(db.Model):
@@ -25,6 +26,52 @@ class User(db.Model):
     # Armazena até quando o usuário está bloqueado. Bloqueio por tempo é mais
     # seguro que bloqueio definitivo para mitigar negação de serviço (DoS) direcionada.
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+
+
+class TutoringOffer(db.Model):
+    __tablename__ = "tutoring_offers"
+
+    # Cada oferta pertence ao usuário que atua como mentor.
+    id = db.Column(db.Integer, primary_key=True)
+    mentor_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    subject = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="available")
+
+    mentor = db.relationship(
+        "User", backref=db.backref("tutoring_offers", lazy=True)
+    )
+
+
+class Enrollment(db.Model):
+    __tablename__ = "enrollments"
+    # Um usuário pode se inscrever uma única vez em cada oferta.
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "tutoring_offer_id",
+            name="uq_enrollment_user_tutoring_offer",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    tutoring_offer_id = db.Column(
+        db.Integer,
+        db.ForeignKey("tutoring_offers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    status = db.Column(db.String(20), nullable=False, default="active")
+
+    # A inscrição liga o usuário à oferta de monitoria escolhida.
+    user = db.relationship("User", backref=db.backref("enrollments", lazy=True))
+    tutoring_offer = db.relationship(
+        "TutoringOffer", backref=db.backref("enrollments", lazy=True)
+    )
 
 
 # NOVO MODELO: Gestão de Sessão (Issue #3)

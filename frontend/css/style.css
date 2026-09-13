@@ -1,8 +1,119 @@
 body {
     background-color: #f5f5f5;
+    min-width: 320px;
+    min-height: 100vh;
+}
+
+.app-shell {
+    padding: 1rem;
 }
 
 .auth-card {
     width: 100%;
-    max-width: 420px;
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 0;
+    transition: max-width 0.2s ease, min-height 0.2s ease;
+}
+
+.auth-card.dashboard-active {
+    max-width: none;
+    min-height: calc(100vh - 2rem);
+}
+
+#dashboardSection {
+    min-height: 100%;
+    width: 100%;
+}
+
+.dashboard-screen {
+    min-height: 430px;
+}
+
+#dashboardNavigation {
+    flex-wrap: nowrap;
+}
+
+#dashboardNavigation .nav-link {
+    min-width: 0;
+    white-space: normal;
+}
+
+.dashboard-screen .card {
+    background-color: #fff;
+}
+
+.dashboard-screen .card-title {
+    color: #212529;
+}
+
+#availableTutoringOffers .card {
+    height: 100%;
+}
+
+.tutoring-action {
+    min-width: 9rem;
+}
+
+/* Bootstrap md breakpoint: 48rem. */
+@media (width < 48rem) {
+    .app-shell {
+        padding: 0.75rem;
+    }
+
+    .auth-card.dashboard-active {
+        min-height: calc(100vh - 1.5rem);
+    }
+
+    #dashboardSection {
+        min-height: 0;
+    }
+
+    .dashboard-screen {
+        min-height: 500px;
+    }
+
+    #dashboardNavigation {
+        flex-direction: column;
+    }
+
+    #dashboardNavigation .nav-link {
+        width: 100%;
+    }
+
+    #dashboardSection header {
+        align-items: flex-start !important;
+    }
+
+    #dashboardSection header #logoutBtn {
+        width: 100%;
+    }
+}
+
+/* Bootstrap sm breakpoint: 36rem. */
+@media (width < 36rem) {
+    .app-shell {
+        padding: 0.5rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .dashboard-screen {
+        min-height: 560px;
+    }
+
+    #disable2faSection .input-group,
+    #confirmTwoFactorForm .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    #disable2faSection .input-group > *,
+    #confirmTwoFactorForm .input-group > * {
+        width: 100%;
+        border-radius: var(--bs-border-radius);
+    }
 }

@@ -68,8 +68,10 @@ def create_app():
         db.create_all()
 
     from app.routes.auth import auth_bp
+    from app.routes.tutoring_offers import tutoring_offers_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(tutoring_offers_bp, url_prefix="/tutoring-offers")
 
     frontend_path = project_root / "frontend"
 
