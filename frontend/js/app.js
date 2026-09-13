@@ -3,6 +3,7 @@ const loginSection = document.getElementById("loginSection");
 const registerSection = document.getElementById("registerSection");
 const twoFactorSection = document.getElementById("twoFactorSection");
 const dashboardSection = document.getElementById("dashboardSection");
+const authCard = document.querySelector(".auth-card");
 const forgotPasswordSection = document.getElementById("forgotPasswordSection");
 const resetPasswordSection = document.getElementById("resetPasswordSection");
 
@@ -13,7 +14,7 @@ const confirmTwoFactorForm = document.getElementById("confirmTwoFactorForm");
 const disableTwoFactorForm = document.getElementById("disableTwoFactorForm");
 const forgotPasswordForm = document.getElementById("forgotPasswordForm");
 const resetPasswordForm = document.getElementById("resetPasswordForm");
-const offerMonitoriaForm = document.getElementById("offerMonitoriaForm");
+const offerTutoringForm = document.getElementById("offerTutoringForm");
 
 const loginMessage = document.getElementById("loginMessage");
 const registerMessage = document.getElementById("registerMessage");
@@ -22,7 +23,7 @@ const setupTwoFactorMessage = document.getElementById("setupTwoFactorMessage");
 const disableTwoFactorMessage = document.getElementById("disableTwoFactorMessage");
 const forgotPasswordMessage = document.getElementById("forgotPasswordMessage");
 const resetPasswordMessage = document.getElementById("resetPasswordMessage");
-const offerMonitoriaMessage = document.getElementById("offerMonitoriaMessage");
+const offerTutoringMessage = document.getElementById("offerTutoringMessage");
 
 const showRegister = document.getElementById("showRegister");
 const showLogin = document.getElementById("showLogin");
@@ -30,9 +31,16 @@ const backToLogin = document.getElementById("backToLogin");
 const logoutBtn = document.getElementById("logoutBtn");
 const showForgotPassword = document.getElementById("showForgotPassword");
 const backToLoginFromForgotPassword = document.getElementById("backToLoginFromForgotPassword");
+const dashboardNavigation = document.getElementById("dashboardNavigation");
+const enrollmentConfirmationModal = document.getElementById("enrollmentConfirmationModal");
+const enrollmentConfirmationTitle = document.getElementById("enrollmentConfirmationTitle");
+const enrollmentConfirmationMessage = document.getElementById("enrollmentConfirmationMessage");
+const confirmEnrollmentAction = document.getElementById("confirmEnrollmentAction");
 
 let currentUser = null;
 let pendingTwoFactorSecret = null;
+let pendingEnrollmentAction = null;
+const enrollmentModal = new bootstrap.Modal(enrollmentConfirmationModal);
 
 // SEÇÃO DE NAVEGAÇÃO
 
@@ -78,26 +86,55 @@ logoutBtn.addEventListener("click", async () => {
 
     // 2. Limpa o estado no frontend e volta pra tela de login
     currentUser = null;
+    authCard.classList.remove("dashboard-active");
     dashboardSection.classList.add("d-none");
     loginSection.classList.remove("d-none");
     loginForm.reset();
     loginMessage.innerHTML = "";
+    showDashboardScreen("overviewScreen");
 });
 
-function renderMonitoriaCard(monitoria, action = "") {
-    const actionButton = action
-        ? `<button class="btn btn-primary btn-sm enroll-monitoria" data-monitoria-id="${monitoria.id}">
-                Inscrever-se
+function showDashboardScreen(screenId) {
+    document.querySelectorAll(".dashboard-screen").forEach((screen) => {
+        screen.classList.toggle("d-none", screen.id !== screenId);
+    });
+
+    dashboardNavigation.querySelectorAll("[data-dashboard-screen]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.dashboardScreen === screenId);
+    });
+}
+
+dashboardSection.addEventListener("click", (event) => {
+    const navigationButton = event.target.closest("[data-dashboard-screen]");
+    if (navigationButton) {
+        showDashboardScreen(navigationButton.dataset.dashboardScreen);
+    }
+});
+
+function renderTutoringCard(tutoringOffer, action = "") {
+    const actionButton = action === "enroll"
+        ? `<button class="btn btn-primary btn-sm tutoring-action enroll-tutoring"
+                data-tutoring-offer-id="${tutoringOffer.id}">
+                <span class="me-1">+</span> Inscrever-se
            </button>`
-        : "";
+        : action === "unsubscribe"
+            ? `<button class="btn btn-outline-danger btn-sm tutoring-action unsubscribe-tutoring"
+                data-tutoring-offer-id="${tutoringOffer.id}">
+                Desinscrever-se
+               </button>`
+            : "";
 
     return `
-        <div class="card mb-2">
-            <div class="card-body">
-                <h6 class="card-title">${monitoria.disciplina}</h6>
-                <p class="card-text mb-2">${monitoria.descricao}</p>
-                <small class="text-muted">Monitor: ${monitoria.monitor.full_name}</small>
-                ${actionButton}
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-title">${tutoringOffer.disciplina}</h6>
+                    <p class="card-text mb-3">${tutoringOffer.descricao}</p>
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <small class="text-muted text-truncate">Monitor: ${tutoringOffer.monitor.full_name}</small>
+                        ${actionButton}
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -107,15 +144,15 @@ function renderEmptyMessage(message) {
     return `<p class="text-muted">${message}</p>`;
 }
 
-async function loadMonitorias() {
-    const availableContainer = document.getElementById("availableMonitorias");
-    const offeredContainer = document.getElementById("offeredMonitorias");
-    const enrolledContainer = document.getElementById("enrolledMonitorias");
+async function loadTutoringOffers() {
+    const availableContainer = document.getElementById("availableTutoringOffers");
+    const offeredContainer = document.getElementById("offeredTutoringOffers");
+    const enrolledContainer = document.getElementById("enrolledTutoringOffers");
 
     try {
         const [availableResponse, mineResponse] = await Promise.all([
-            fetch("/monitorias"),
-            fetch("/monitorias/minhas")
+            fetch("/tutoring-offers"),
+            fetch("/tutoring-offers/mine")
         ]);
         const availableData = await availableResponse.json();
         const mineData = await mineResponse.json();
@@ -125,13 +162,13 @@ async function loadMonitorias() {
         }
 
         availableContainer.innerHTML = availableData.monitorias.length
-            ? availableData.monitorias.map(item => renderMonitoriaCard(item, "enroll")).join("")
+            ? availableData.monitorias.map(item => renderTutoringCard(item, "enroll")).join("")
             : renderEmptyMessage("Nenhuma monitoria disponível no momento.");
         offeredContainer.innerHTML = mineData.oferecidas.length
-            ? mineData.oferecidas.map(item => renderMonitoriaCard(item)).join("")
+            ? mineData.oferecidas.map(item => renderTutoringCard(item)).join("")
             : renderEmptyMessage("Você ainda não ofereceu uma monitoria.");
         enrolledContainer.innerHTML = mineData.inscricoes.length
-            ? mineData.inscricoes.map(item => renderMonitoriaCard(item.monitoria)).join("")
+            ? mineData.inscricoes.map(item => renderTutoringCard(item.monitoria, "unsubscribe")).join("")
             : renderEmptyMessage("Você ainda não está inscrito em uma monitoria.");
     } catch (error) {
         availableContainer.innerHTML = `
@@ -140,60 +177,106 @@ async function loadMonitorias() {
     }
 }
 
-offerMonitoriaForm.addEventListener("submit", async (event) => {
+offerTutoringForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    offerMonitoriaMessage.innerHTML = "";
+    offerTutoringMessage.innerHTML = "";
 
     try {
-        const response = await fetch("/monitorias", {
+        const response = await fetch("/tutoring-offers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                disciplina: document.getElementById("monitoriaDisciplina").value,
-                descricao: document.getElementById("monitoriaDescricao").value
+                disciplina: document.getElementById("tutoringSubject").value,
+                descricao: document.getElementById("tutoringDescription").value
             })
         });
         const data = await response.json();
 
         if (!response.ok) {
-            offerMonitoriaMessage.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            offerTutoringMessage.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
             return;
         }
 
-        offerMonitoriaMessage.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
-        offerMonitoriaForm.reset();
-        loadMonitorias();
+        offerTutoringMessage.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+        offerTutoringForm.reset();
+        loadTutoringOffers();
     } catch (error) {
-        offerMonitoriaMessage.innerHTML = `
+        offerTutoringMessage.innerHTML = `
             <div class="alert alert-danger">Não foi possível conectar ao servidor.</div>
         `;
     }
 });
 
-document.getElementById("availableMonitorias").addEventListener("click", async (event) => {
-    const button = event.target.closest(".enroll-monitoria");
+function openEnrollmentConfirmation(action, tutoringOfferId) {
+    pendingEnrollmentAction = { action, tutoringOfferId };
+    const isEnrollment = action === "enroll";
+
+    enrollmentConfirmationTitle.textContent = isEnrollment
+        ? "Confirmar inscrição"
+        : "Confirmar desinscrição";
+    enrollmentConfirmationMessage.textContent = isEnrollment
+        ? "Deseja se inscrever nesta monitoria?"
+        : "Deseja cancelar sua inscrição nesta monitoria?";
+    confirmEnrollmentAction.textContent = isEnrollment ? "Inscrever-se" : "Desinscrever-se";
+    confirmEnrollmentAction.className = isEnrollment
+        ? "btn btn-primary"
+        : "btn btn-danger";
+    enrollmentModal.show();
+}
+
+async function executeEnrollmentAction() {
+    if (!pendingEnrollmentAction) {
+        return;
+    }
+
+    const { action, tutoringOfferId } = pendingEnrollmentAction;
+    const isEnrollment = action === "enroll";
+    confirmEnrollmentAction.disabled = true;
+
+    try {
+        const response = await fetch(
+            isEnrollment
+                ? `/tutoring-offers/${tutoringOfferId}/enrollments`
+                : `/tutoring-offers/${tutoringOfferId}/enrollment`,
+            { method: isEnrollment ? "POST" : "DELETE" }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            enrollmentConfirmationMessage.innerHTML =
+                `<div class="alert alert-danger mb-0">${data.error}</div>`;
+            return;
+        }
+
+        enrollmentModal.hide();
+        loadTutoringOffers();
+    } catch (error) {
+        enrollmentConfirmationMessage.innerHTML =
+            '<div class="alert alert-danger mb-0">Não foi possível conectar ao servidor.</div>';
+    } finally {
+        confirmEnrollmentAction.disabled = false;
+        pendingEnrollmentAction = null;
+    }
+}
+
+confirmEnrollmentAction.addEventListener("click", executeEnrollmentAction);
+
+document.getElementById("availableTutoringOffers").addEventListener("click", (event) => {
+    const button = event.target.closest(".enroll-tutoring");
     if (!button) {
         return;
     }
 
-    button.disabled = true;
-    try {
-        const response = await fetch(`/monitorias/${button.dataset.monitoriaId}/inscricoes`, {
-            method: "POST"
-        });
-        const data = await response.json();
+    openEnrollmentConfirmation("enroll", button.dataset.tutoringOfferId);
+});
 
-        if (!response.ok) {
-            alert(data.error);
-            button.disabled = false;
-            return;
-        }
-
-        loadMonitorias();
-    } catch (error) {
-        alert("Não foi possível conectar ao servidor.");
-        button.disabled = false;
+document.getElementById("enrolledTutoringOffers").addEventListener("click", (event) => {
+    const button = event.target.closest(".unsubscribe-tutoring");
+    if (!button) {
+        return;
     }
+
+    openEnrollmentConfirmation("unsubscribe", button.dataset.tutoringOfferId);
 });
 
 // CADASTRO
@@ -423,6 +506,7 @@ loginForm.addEventListener("submit", async (event) => {
 
         // Caso contrário, login bem-sucedido
         currentUser = data.user;
+        authCard.classList.add("dashboard-active");
         showDashboard();
 
     } catch (error) {
@@ -464,6 +548,7 @@ twoFactorForm.addEventListener("submit", async (event) => {
         }
 
         currentUser = data.user;
+        authCard.classList.add("dashboard-active");
         showDashboard();
 
     } catch (error) {
@@ -482,6 +567,8 @@ function showDashboard() {
     twoFactorSection.classList.add("d-none");
     registerSection.classList.add("d-none");
     dashboardSection.classList.remove("d-none");
+    document.getElementById("dashboardUserName").textContent = currentUser.full_name;
+    showDashboardScreen("overviewScreen");
 
     // Exibir informações do usuário
     const userInfo = document.getElementById("userInfo");
@@ -493,7 +580,7 @@ function showDashboard() {
 
     // Carregar status de 2FA
     loadTwoFactorStatus();
-    loadMonitorias();
+    loadTutoringOffers();
 }
 
 async function loadTwoFactorStatus() {
@@ -711,6 +798,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         if (response.ok) {
             const data = await response.json();
             currentUser = data.user;
+            authCard.classList.add("dashboard-active");
             showDashboard();
         }
     } catch (error) {

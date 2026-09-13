@@ -13,7 +13,7 @@
 </head>
 
 <body>
-    <main class="container d-flex justify-content-center align-items-center min-vh-100">
+    <main class="container-fluid app-shell d-flex justify-content-center align-items-center min-vh-100">
         <div class="card shadow-sm auth-card">
             <div class="card-body p-4">
 
@@ -206,120 +206,188 @@
 
                 <!-- DASHBOARD (após login bem-sucedido) -->
                 <section id="dashboardSection" class="d-none">
-                    <h1 class="text-center mb-4">Dashboard</h1>
+                    <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+                        <div>
+                            <p class="text-primary fw-semibold mb-1">MENTORY</p>
+                            <h1 class="h3 mb-1">Olá, <span id="dashboardUserName"></span>!</h1>
+                            <p class="text-muted mb-0">Organize suas monitorias em um só lugar.</p>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary" id="logoutBtn">
+                            Sair
+                        </button>
+                    </header>
 
-                    <div id="userInfo" class="mb-4 p-3 bg-light rounded"></div>
+                    <nav class="nav nav-pills nav-fill gap-2 mb-4" id="dashboardNavigation">
+                        <button class="nav-link active" type="button" data-dashboard-screen="overviewScreen">
+                            Visão geral
+                        </button>
+                        <button class="nav-link" type="button" data-dashboard-screen="offerScreen">
+                            Oferecer monitoria
+                        </button>
+                        <button class="nav-link" type="button" data-dashboard-screen="exploreScreen">
+                            Encontrar monitorias
+                        </button>
+                        <button class="nav-link" type="button" data-dashboard-screen="activityScreen">
+                            Minhas atividades
+                        </button>
+                    </nav>
 
-                    <div class="mb-4">
-                        <h5>Oferecer monitoria</h5>
-                        <form id="offerMonitoriaForm" class="card p-3">
-                            <div class="mb-2">
-                                <label for="monitoriaDisciplina" class="form-label">Disciplina</label>
-                                <input type="text" class="form-control" id="monitoriaDisciplina" required>
-                            </div>
-
-                            <div class="mb-2">
-                                <label for="monitoriaDescricao" class="form-label">Descrição</label>
-                                <textarea class="form-control" id="monitoriaDescricao" rows="3" required></textarea>
-                            </div>
-
-                            <button type="submit" class="btn btn-success">Oferecer monitoria</button>
-                            <div id="offerMonitoriaMessage" class="mt-2"></div>
-                        </form>
-                    </div>
-
-                    <div class="mb-4">
-                        <h5>Monitorias disponíveis</h5>
-                        <div id="availableMonitorias"></div>
-                    </div>
-
-                    <div class="mb-4">
-                        <h5>Minhas monitorias oferecidas</h5>
-                        <div id="offeredMonitorias"></div>
-                    </div>
-
-                    <div class="mb-4">
-                        <h5>Minhas inscrições</h5>
-                        <div id="enrolledMonitorias"></div>
-                    </div>
-
-                    <!-- 2FA Setup -->
-                    <div class="mb-4">
-                        <h5>Autenticação de Dois Fatores (2FA)</h5>
-
-                        <div id="twoFactorStatus" class="mb-3"></div>
-
-                        <section id="setup2faSection" class="d-none">
-                            <div class="card p-3">
-                                <h6>Ativar 2FA com TOTP</h6>
-
-                                <p class="text-muted small mb-3">
-                                    Escaneie o código QR com o Google Authenticator ou outro app similar.
-                                </p>
-
-                                <div id="qrCodeContainer" class="text-center mb-3"></div>
-
-                                <p class="text-muted small mb-2">Ou insira manualmente a chave:</p>
-
-                                <div id="manualKeyContainer"
-                                    class="mb-3 p-2 bg-light rounded font-monospace small text-center"></div>
-
-                                <form id="confirmTwoFactorForm">
-                                    <div class="mb-2">
-                                        <label for="setupTwoFactorCode" class="form-label small">
-                                            Código do aplicativo
-                                        </label>
-
-                                        <input type="text" class="form-control" id="setupTwoFactorCode"
-                                            placeholder="000000" maxlength="6" required>
+                    <section id="overviewScreen" class="dashboard-screen">
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <p class="text-muted mb-1">Seu perfil</p>
+                                        <h2 class="h5 mb-3">Informações da conta</h2>
+                                        <div id="userInfo" class="small"></div>
                                     </div>
-
-                                    <button type="submit" class="btn btn-success btn-sm w-100">
-                                        Confirmar 2FA
-                                    </button>
-                                </form>
-
-                                <div id="setupTwoFactorMessage" class="mt-2"></div>
+                                </div>
                             </div>
-                        </section>
-
-                        <section id="disable2faSection" class="d-none">
-                            <div class="card p-3 border-danger">
-                                <h6>Desativar 2FA</h6>
-
-                                <p class="text-muted small mb-3">
-                                    Você já tem 2FA ativado. Desative se necessário.
-                                </p>
-
-                                <form id="disableTwoFactorForm">
-                                    <div class="mb-2">
-                                        <label for="disableTwoFactorPassword" class="form-label small">
-                                            Senha
-                                        </label>
-
-                                        <input type="password" class="form-control" id="disableTwoFactorPassword"
-                                            required>
+                            <div class="col-md-5">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <p class="text-muted mb-1">Segurança</p>
+                                        <h2 class="h5 mb-3">Autenticação em dois fatores</h2>
+                                        <div id="twoFactorStatus"></div>
+                                        <button class="btn btn-primary btn-sm mt-2" type="button"
+                                            data-dashboard-screen="securityScreen">
+                                            Gerenciar 2FA
+                                        </button>
                                     </div>
-
-                                    <button type="submit" class="btn btn-danger btn-sm w-100">
-                                        Desativar 2FA
-                                    </button>
-                                </form>
-
-                                <div id="disableTwoFactorMessage" class="mt-2"></div>
+                                </div>
                             </div>
-                        </section>
-                    </div>
+                        </div>
+                    </section>
 
-                    <button type="button" class="btn btn-secondary w-100" id="logoutBtn">
-                        Sair
-                    </button>
+                    <section id="offerScreen" class="dashboard-screen d-none">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <p class="text-muted mb-1">Compartilhe seu conhecimento</p>
+                                <h2 class="h4">Oferecer uma monitoria</h2>
+                                <p class="text-muted">Ajude outros alunos com uma disciplina que você domina.</p>
+                                <form id="offerTutoringForm" class="row g-3">
+                                    <div class="col-12">
+                                        <label for="tutoringSubject" class="form-label">Disciplina</label>
+                                        <input type="text" class="form-control" id="tutoringSubject" required>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="tutoringDescription" class="form-label">Descrição</label>
+                                        <textarea class="form-control" id="tutoringDescription" rows="5"
+                                            placeholder="Explique como você pode ajudar." required></textarea>
+                                    </div>
+                                    <div class="col-12 d-flex justify-content-end">
+                                        <button type="submit" class="btn btn-success">Publicar monitoria</button>
+                                    </div>
+                                    <div id="offerTutoringMessage" class="col-12"></div>
+                                </form>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="exploreScreen" class="dashboard-screen d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <p class="text-muted mb-1">Aprenda com outros alunos</p>
+                                <h2 class="h4 mb-0">Monitorias disponíveis</h2>
+                            </div>
+                        </div>
+                        <div id="availableTutoringOffers" class="row g-3"></div>
+                    </section>
+
+                    <section id="activityScreen" class="dashboard-screen d-none">
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <h2 class="h5">Monitorias oferecidas</h2>
+                                        <p class="text-muted small">Ofertas publicadas por você.</p>
+                                        <div id="offeredTutoringOffers"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <h2 class="h5">Minhas inscrições</h2>
+                                        <p class="text-muted small">Monitorias em que você se inscreveu.</p>
+                                        <div id="enrolledTutoringOffers"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="securityScreen" class="dashboard-screen d-none">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                    <div>
+                                        <p class="text-muted mb-1">Proteja sua conta</p>
+                                        <h2 class="h4">Autenticação em dois fatores</h2>
+                                    </div>
+                                    <button class="btn btn-link btn-sm" type="button"
+                                        data-dashboard-screen="overviewScreen">Voltar</button>
+                                </div>
+                                <section id="setup2faSection" class="d-none">
+                                    <p class="text-muted small">Escaneie o QR code com seu aplicativo autenticador.</p>
+                                    <div id="qrCodeContainer" class="text-center mb-3"></div>
+                                    <p class="text-muted small mb-2">Ou insira manualmente a chave:</p>
+                                    <div id="manualKeyContainer"
+                                        class="mb-3 p-2 bg-light rounded font-monospace small text-center"></div>
+                                    <form id="confirmTwoFactorForm">
+                                        <label for="setupTwoFactorCode" class="form-label small">Código do aplicativo</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="setupTwoFactorCode"
+                                                placeholder="000000" maxlength="6" required>
+                                            <button type="submit" class="btn btn-success">Confirmar</button>
+                                        </div>
+                                    </form>
+                                    <div id="setupTwoFactorMessage" class="mt-2"></div>
+                                </section>
+                                <section id="disable2faSection" class="d-none">
+                                    <div class="alert alert-success">2FA está ativado nesta conta.</div>
+                                    <form id="disableTwoFactorForm">
+                                        <label for="disableTwoFactorPassword" class="form-label">Senha</label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="disableTwoFactorPassword"
+                                                required>
+                                            <button type="submit" class="btn btn-outline-danger">Desativar 2FA</button>
+                                        </div>
+                                    </form>
+                                    <div id="disableTwoFactorMessage" class="mt-2"></div>
+                                </section>
+                            </div>
+                        </div>
+                    </section>
                 </section>
+
+                <div class="modal fade" id="enrollmentConfirmationModal" tabindex="-1"
+                    aria-labelledby="enrollmentConfirmationTitle" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="enrollmentConfirmationTitle">Confirmar ação</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body" id="enrollmentConfirmationMessage"></div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                                    Cancelar
+                                </button>
+                                <button type="button" class="btn btn-primary" id="confirmEnrollmentAction">
+                                    Confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
         </div>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/app.js"></script>
 </body>
 

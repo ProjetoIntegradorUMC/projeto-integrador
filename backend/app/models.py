@@ -28,44 +28,49 @@ class User(db.Model):
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
 
 
-class Monitoria(db.Model):
-    __tablename__ = "monitoria"
+class TutoringOffer(db.Model):
+    __tablename__ = "tutoring_offers"
 
+    # Cada oferta pertence ao usuário que atua como mentor.
     id = db.Column(db.Integer, primary_key=True)
-    monitor_id = db.Column(
+    mentor_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    disciplina = db.Column(db.String(120), nullable=False)
-    descricao = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(20), nullable=False, default="disponivel")
+    subject = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="available")
 
-    # A monitoria pertence ao aluno que a ofereceu; inscrições ficam separadas.
-    monitor = db.relationship(
-        "User", backref=db.backref("monitorias_oferecidas", lazy=True)
+    mentor = db.relationship(
+        "User", backref=db.backref("tutoring_offers", lazy=True)
     )
 
 
-class Inscricao(db.Model):
-    __tablename__ = "inscricao"
+class Enrollment(db.Model):
+    __tablename__ = "enrollments"
+    # Um usuário pode se inscrever uma única vez em cada oferta.
     __table_args__ = (
-        UniqueConstraint("usuario_id", "monitoria_id", name="uq_inscricao_usuario_monitoria"),
+        UniqueConstraint(
+            "user_id",
+            "tutoring_offer_id",
+            name="uq_enrollment_user_tutoring_offer",
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    usuario_id = db.Column(
+    user_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    monitoria_id = db.Column(
-        db.Integer, db.ForeignKey("monitoria.id", ondelete="CASCADE"), nullable=False
+    tutoring_offer_id = db.Column(
+        db.Integer,
+        db.ForeignKey("tutoring_offers.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    status = db.Column(db.String(20), nullable=False, default="ativa")
+    status = db.Column(db.String(20), nullable=False, default="active")
 
-    # A inscrição liga um aluno mentorado a uma oferta específica.
-    usuario = db.relationship(
-        "User", backref=db.backref("inscricoes", lazy=True)
-    )
-    monitoria = db.relationship(
-        "Monitoria", backref=db.backref("inscricoes", lazy=True)
+    # A inscrição liga o usuário à oferta de monitoria escolhida.
+    user = db.relationship("User", backref=db.backref("enrollments", lazy=True))
+    tutoring_offer = db.relationship(
+        "TutoringOffer", backref=db.backref("enrollments", lazy=True)
     )
 
 
