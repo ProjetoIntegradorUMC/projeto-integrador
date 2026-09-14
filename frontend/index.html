@@ -230,6 +230,9 @@
                         <button class="nav-link" type="button" data-dashboard-screen="activityScreen">
                             Minhas atividades
                         </button>
+                        <button class="nav-link text-danger fw-semibold" type="button" data-dashboard-screen="mydataScreen">
+                            Meus dados (LGPD)
+                        </button>
                     </nav>
 
                     <section id="overviewScreen" class="dashboard-screen">
@@ -356,6 +359,32 @@
                                     </form>
                                     <div id="disableTwoFactorMessage" class="mt-2"></div>
                                 </section>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="mydataScreen" class="dashboard-screen d-none">
+                        <div class="row g-4">
+                            <div class="col-lg-12">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <h2 class="h5">Direitos do Titular (LGPD)</h2>
+                                        <p class="text-muted small">Gerencie seus dados pessoais, exporte suas informações ou solicite a exclusão definitiva da sua conta.</p>
+                                        
+                                        <div id="lgpdDataContainer" class="mb-4 mt-3 bg-light p-3 rounded border">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Carregando dados...
+                                        </div>
+
+                                        <div class="mt-4">
+                                            <button class="btn btn-outline-primary me-2" id="exportDataBtn">
+                                                Baixar meus dados (JSON)
+                                            </button>
+                                            <button class="btn btn-danger" id="deleteAccountBtn">
+                                                Excluir minha conta definitivamente
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>
