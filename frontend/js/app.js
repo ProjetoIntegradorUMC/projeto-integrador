@@ -114,7 +114,7 @@ dashboardSection.addEventListener("click", (event) => {
     if (navigationButton) {
         const screenId = navigationButton.dataset.dashboardScreen;
         showDashboardScreen(screenId);
-        
+
         if (screenId === "mydataScreen") {
             loadLGPDData();
         }
@@ -866,38 +866,41 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 });
 
-// LGPD: DIREITOS DO TITULAR
-
 async function loadLGPDData() {
     const container = document.getElementById("lgpdDataContainer");
     try {
         const response = await fetch("/lgpd/export");
         if (!response.ok) throw new Error("Erro ao carregar dados LGPD.");
-        
-        const json = await response.json();
-        const data = json.user;
-        
+
+        const data = await response.json();
+        const personalData = data["Dados pessoais"];
+        const offers = data["Monitorias oferecidas"];
+        const enrollments = data["Inscrições em monitorias"];
+
         let html = `
             <ul class="list-group list-group-flush small bg-transparent">
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Nome:</strong> ${data.full_name}</li>
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Usuário:</strong> ${data.username}</li>
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>E-mail:</strong> ${data.email}</li>
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>2FA Ativo:</strong> ${data.two_factor_enabled ? 'Sim' : 'Não'}</li>
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Nome completo:</strong> ${personalData["Nome completo"]}</li>
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Nome de usuário:</strong> ${personalData["Nome de usuário"]}</li>
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>E-mail:</strong> ${personalData["E-mail"]}</li>
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Autenticação em dois fatores:</strong> ${personalData["Autenticação em dois fatores"]}</li>
         `;
-        
-        if (data.consent_given_at) {
-            html += `<li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1 text-success"><strong>Consentimento de Dados:</strong> Dado em ${new Date(data.consent_given_at).toLocaleString()} (Versão ${data.consent_version})</li>`;
-        } else {
-            html += `<li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1 text-muted"><strong>Consentimento de Dados:</strong> Não registrado (ou pendente).</li>`;
+
+        if (personalData.Consentimento) {
+            const consent = personalData.Consentimento;
+            html += `
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1 text-success">
+                    <strong>Consentimento:</strong> Registrado em ${new Date(consent["Registrado em"]).toLocaleString()} (Versão ${consent["Versão"]})
+                </li>
+            `;
         }
-        
+
         html += `
             </ul>
             <div class="mt-3 small">
-                <strong>Resumo da conta:</strong> Você possui ${data.tutoring_offers.length} monitoria(s) oferecida(s) e ${data.enrollments.length} inscrição(ões) ativa(s).
+                <strong>Resumo da conta:</strong> Você possui ${offers.length} monitoria(s) oferecida(s) e ${enrollments.length} inscrição(ões) ativa(s).
             </div>
         `;
-        
+
         container.innerHTML = html;
     } catch (error) {
         container.innerHTML = `<span class="text-danger">Não foi possível carregar os dados.</span>`;
