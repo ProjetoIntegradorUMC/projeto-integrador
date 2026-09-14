@@ -31,6 +31,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 
 - **[Ler a Documentação Técnica de Autenticação e Sessão ](docs/autenticacao.md)**
 - **[Ler a Documentação Técnica de Recuperação de Senha ](docs/recuperacao-senha.md)**
+- **[Ler a Documentação Técnica de Conformidade LGPD ](docs/lgpd.md)**
 
 ---
 
@@ -46,7 +47,7 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
 
 1. **Suba o Banco de Dados:**
    ```bash
-   docker-compose up -d db
+   docker-compose up -d postgres
    ```
 2. **Configure o Ambiente Virtual:**
    ```bash
