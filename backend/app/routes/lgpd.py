@@ -13,7 +13,6 @@ def export_data(current_user):
     Exporta os dados pessoais do usuário em formato JSON, omitindo dados sensíveis de segurança.
     """
     user_data = {
-        "id": current_user.id,
         "username": current_user.username,
         "full_name": current_user.full_name,
         "email": current_user.email,
