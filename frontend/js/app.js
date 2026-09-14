@@ -112,7 +112,12 @@ function showDashboardScreen(screenId) {
 dashboardSection.addEventListener("click", (event) => {
     const navigationButton = event.target.closest("[data-dashboard-screen]");
     if (navigationButton) {
-        showDashboardScreen(navigationButton.dataset.dashboardScreen);
+        const screenId = navigationButton.dataset.dashboardScreen;
+        showDashboardScreen(screenId);
+
+        if (screenId === "mydataScreen") {
+            loadLGPDData();
+        }
     }
 });
 
@@ -860,3 +865,94 @@ window.addEventListener("DOMContentLoaded", async () => {
         console.error("Erro ao verificar sessão ativa:", error);
     }
 });
+
+async function loadLGPDData() {
+    const container = document.getElementById("lgpdDataContainer");
+    try {
+        const response = await fetch("/lgpd/export");
+        if (!response.ok) throw new Error("Erro ao carregar dados LGPD.");
+
+        const data = await response.json();
+        const personalData = data["Dados pessoais"];
+        const offers = data["Monitorias oferecidas"];
+        const enrollments = data["Inscrições em monitorias"];
+
+        let html = `
+            <ul class="list-group list-group-flush small bg-transparent">
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Nome completo:</strong> ${personalData["Nome completo"]}</li>
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Nome de usuário:</strong> ${personalData["Nome de usuário"]}</li>
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>E-mail:</strong> ${personalData["E-mail"]}</li>
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Autenticação em dois fatores:</strong> ${personalData["Autenticação em dois fatores"]}</li>
+        `;
+
+        if (personalData.Consentimento) {
+            const consent = personalData.Consentimento;
+            html += `
+                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1 text-success">
+                    <strong>Consentimento:</strong> Registrado em ${new Date(consent["Registrado em"]).toLocaleString()} (Versão ${consent["Versão"]})
+                </li>
+            `;
+        }
+
+        html += `
+            </ul>
+            <div class="mt-3 small">
+                <strong>Resumo da conta:</strong> Você possui ${offers.length} monitoria(s) oferecida(s) e ${enrollments.length} inscrição(ões) ativa(s).
+            </div>
+        `;
+
+        container.innerHTML = html;
+    } catch (error) {
+        container.innerHTML = `<span class="text-danger">Não foi possível carregar os dados.</span>`;
+        console.error(error);
+    }
+}
+
+const exportDataBtn = document.getElementById("exportDataBtn");
+if (exportDataBtn) {
+    exportDataBtn.addEventListener("click", async () => {
+        try {
+            const response = await fetch("/lgpd/export");
+            if (!response.ok) throw new Error("Erro ao exportar dados.");
+            
+            const data = await response.json();
+            
+            // Cria um arquivo JSON e força o download
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "meus_dados_lgpd.json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        } catch (error) {
+            alert("Não foi possível exportar seus dados. Tente novamente mais tarde.");
+            console.error(error);
+        }
+    });
+}
+
+const deleteAccountBtn = document.getElementById("deleteAccountBtn");
+if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener("click", async () => {
+        const confirmation = confirm("Tem certeza que deseja EXCLUIR DEFINITIVAMENTE sua conta e todos os seus dados pessoais? Esta ação NÃO pode ser desfeita e você perderá acesso ao Mentory.");
+        
+        if (confirmation) {
+            try {
+                const response = await fetch("/lgpd/delete", { method: "DELETE" });
+                
+                if (response.ok) {
+                    alert("Sua conta foi excluída com sucesso.");
+                    // Redireciona para recarregar o app
+                    window.location.reload();
+                } else {
+                    const data = await response.json();
+                    alert("Erro ao excluir conta: " + (data.error || "Tente novamente."));
+                }
+            } catch (error) {
+                alert("Erro de conexão ao tentar excluir a conta.");
+                console.error(error);
+            }
+        }
+    });
+}
