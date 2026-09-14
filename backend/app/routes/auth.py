@@ -45,8 +45,9 @@ def register():
     username = data.get("username")
     email = data.get("email")
     password = data.get("password")
+    consent_given = data.get("consent_given")
 
-    if not username or not email or not password or not full_name:
+    if not username or not email or not password or not full_name or not consent_given:
         return jsonify({"error": "Todos os campos são obrigatórios"}), 400
 
     existing_user = User.query.filter(
@@ -68,7 +69,9 @@ def register():
         full_name=full_name,
         username=username,
         email=email,
-        password_hash=password_hash.decode("utf-8")
+        password_hash=password_hash.decode("utf-8"),
+        consent_given_at=datetime.now(timezone.utc),
+        consent_version="1.0",
     )
 
     db.session.add(user)
@@ -595,8 +598,31 @@ def get_me(current_user):
                     "full_name": current_user.full_name,
                     "username": current_user.username,
                     "email": current_user.email,
+                    "consent_given_at": (
+                        current_user.consent_given_at.isoformat()
+                        if current_user.consent_given_at
+                        else None
+                    ),
+                    "consent_version": current_user.consent_version,
                 }
             }
         ),
         200,
     )
+
+
+@auth_bp.route("/consent/revoke", methods=["POST"])
+@login_required
+def revoke_consent(current_user):
+    """
+    Revogar o consentimento implica excluir permanentemente a conta.
+    """
+    db.session.delete(current_user)
+    db.session.commit()
+
+    response = make_response(
+        jsonify({"message": "Consentimento revogado e conta excluída com sucesso"})
+    )
+    response.set_cookie("session_id", "", expires=0)
+
+    return response, 200

@@ -36,11 +36,16 @@ const enrollmentConfirmationModal = document.getElementById("enrollmentConfirmat
 const enrollmentConfirmationTitle = document.getElementById("enrollmentConfirmationTitle");
 const enrollmentConfirmationMessage = document.getElementById("enrollmentConfirmationMessage");
 const confirmEnrollmentAction = document.getElementById("confirmEnrollmentAction");
+const accountDeletionConfirmationModal = document.getElementById(
+    "accountDeletionConfirmationModal"
+);
+const confirmAccountDeletion = document.getElementById("confirmAccountDeletion");
 
 let currentUser = null;
 let pendingTwoFactorSecret = null;
 let pendingEnrollmentAction = null;
 const enrollmentModal = new bootstrap.Modal(enrollmentConfirmationModal);
+const accountDeletionModal = new bootstrap.Modal(accountDeletionConfirmationModal);
 
 // SEÇÃO DE NAVEGAÇÃO
 
@@ -290,6 +295,7 @@ registerForm.addEventListener("submit", async (event) => {
     const username = document.getElementById("registerUsername").value;
     const email = document.getElementById("registerEmail").value;
     const password = document.getElementById("registerPassword").value;
+    const consentGiven = document.getElementById("consent").checked;
 
     try {
         const response = await fetch("/auth/register", {
@@ -301,7 +307,8 @@ registerForm.addEventListener("submit", async (event) => {
                 full_name: fullName,
                 username,
                 email,
-                password
+                password,
+                consent_given: consentGiven
             })
         });
 
@@ -578,6 +585,54 @@ function showDashboard() {
         <strong>E-mail:</strong> ${currentUser.email}
     `;
 
+    const consentStatus = document.getElementById("consentStatus");
+    const revokeConsentBtn = document.getElementById("revokeConsentBtn");
+
+    consentStatus.innerHTML = `
+        <span class="text-success">
+            ✓ Consentimento ativo
+        </span>
+    `;
+    revokeConsentBtn.classList.remove("d-none");
+
+    revokeConsentBtn.onclick = () => {
+        accountDeletionModal.show();
+    };
+
+    confirmAccountDeletion.onclick = async () => {
+        confirmAccountDeletion.disabled = true;
+
+        try {
+            const response = await fetch("/auth/consent/revoke", {
+                method: "POST"
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.error || "Não foi possível revogar o consentimento.");
+                return;
+            }
+
+            accountDeletionModal.hide();
+            currentUser = null;
+            authCard.classList.remove("dashboard-active");
+            dashboardSection.classList.add("d-none");
+            loginSection.classList.remove("d-none");
+            loginForm.reset();
+            loginMessage.innerHTML = `
+                <div class="alert alert-success">
+                    ${data.message}
+                </div>
+            `;
+            showDashboardScreen("overviewScreen");
+
+        } catch (error) {
+            alert("Não foi possível conectar ao servidor.");
+        } finally {
+            confirmAccountDeletion.disabled = false;
+        }
+    };
     // Carregar status de 2FA
     loadTwoFactorStatus();
     loadTutoringOffers();
