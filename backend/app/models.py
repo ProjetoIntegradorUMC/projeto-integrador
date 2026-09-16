@@ -168,6 +168,43 @@ class PasswordResetLog(db.Model):
     )
 
 
+class SecurityLog(db.Model):
+    __tablename__ = "security_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Tipo de evento: login_success, login_failure, twofa_success, twofa_failure.
+    event_type = db.Column(db.String(30), nullable=False, index=True)
+
+    # E-mail do usuário envolvido na tentativa, preservando a auditoria mesmo que a conta seja removida.
+    email = db.Column(db.String(120), nullable=False, index=True)
+
+    # ID do usuário quando o registro puder ser associado a uma conta existente.
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Motivo da falha, sem expor segredos do usuário ou do 2FA.
+    failure_reason = db.Column(db.String(100), nullable=True)
+
+    # Data e hora do acontecimento para facilitar investigação.
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
+    user = db.relationship(
+        "User",
+        backref=db.backref(
+            "security_logs",
+            lazy=True,
+            passive_deletes=True,
+        ),
+    )
+
+
 class PasswordResetToken(db.Model):
     __tablename__ = "password_reset_tokens"
 
