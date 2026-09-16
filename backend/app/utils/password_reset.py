@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 from app import db
-from app.models import PasswordResetLog
+from app.models import PasswordResetLog, SecurityLog
 
 
 def generate_reset_token() -> str:
@@ -38,6 +38,26 @@ def log_password_reset_event(
         event_type=event_type,
         failure_reason=failure_reason,
         token_hash_suffix=token_hash_suffix,
+    )
+
+    db.session.add(log)
+    db.session.commit()
+
+    return log
+
+
+def log_security_event(
+    email: str,
+    event_type: str,
+    user_id: int = None,
+    failure_reason: str = None,
+) -> SecurityLog:
+    """Registra eventos de segurança sem expor senhas ou segredos 2FA."""
+    log = SecurityLog(
+        email=email,
+        user_id=user_id,
+        event_type=event_type,
+        failure_reason=failure_reason,
     )
 
     db.session.add(log)

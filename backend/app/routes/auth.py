@@ -23,6 +23,7 @@ from app.utils.password_reset import (
     generate_reset_token,
     hash_reset_token,
     log_password_reset_event,
+    log_security_event,
 )
 from app.utils.email import send_email
 
@@ -295,6 +296,13 @@ def login():
     user = User.query.filter_by(email=email).first()
 
     if not user:
+        # Instrumentação do login: registra falha antes de responder ao cliente
+        # para manter um histórico consultável sem expor a senha do usuário.
+        log_security_event(
+            email=email,
+            event_type="login_failure",
+            failure_reason="user_not_found",
+        )
         return jsonify({"error": "Credenciais inválidas"}), 401
 
     # ---  PROTEÇÃO CONTRA FORÇA BRUTA ---
@@ -302,6 +310,13 @@ def login():
 
     # 1. Verifica se o usuário está bloqueado
     if user.locked_until and user.locked_until > now:
+        # Instrumentação do login: falha deliberada por conta bloqueada.
+        log_security_event(
+            email=user.email,
+            event_type="login_failure",
+            user_id=user.id,
+            failure_reason="account_locked",
+        )
         minutos_restantes = (user.locked_until - now).seconds // 60
         return (
             jsonify(
@@ -324,6 +339,13 @@ def login():
         if user.failed_attempts >= 5:
             user.locked_until = now + timedelta(minutes=15)
             db.session.commit()
+            # Instrumentação do login: falha terminal que resultou em bloqueio.
+            log_security_event(
+                email=user.email,
+                event_type="login_failure",
+                user_id=user.id,
+                failure_reason="too_many_failed_attempts",
+            )
             return (
                 jsonify(
                     {
@@ -334,6 +356,13 @@ def login():
             )
 
         db.session.commit()
+        # Instrumentação do login: falha em autenticação primária.
+        log_security_event(
+            email=user.email,
+            event_type="login_failure",
+            user_id=user.id,
+            failure_reason="invalid_password",
+        )
         return jsonify({"error": "Credenciais inválidas"}), 401
 
     # 4. Se a senha for válida, zera o contador de erros e remove qualquer bloqueio
@@ -341,6 +370,14 @@ def login():
     user.locked_until = None
     db.session.commit()
     # --- FIM DA PROTEÇÃO ---
+
+    # Instrumentação do login: grava sucesso da autenticação primária mesmo quando
+    # o fluxo segue para validação do código 2FA, sem registrar a senha.
+    log_security_event(
+        email=user.email,
+        event_type="login_success",
+        user_id=user.id,
+    )
 
     # Se 2FA está habilitado, o fluxo desvia para lá sem criar a sessão definitiva ainda.
     if user.two_factor_enabled:
@@ -402,19 +439,46 @@ def verify_2fa():
     # Verificar se há um login pendente (2FA em andamento)
     user_id = session.get("pending_user_id")
     if not user_id:
+        # Instrumentação do 2FA: tentativa sem login pendente não pode ser validada.
+        log_security_event(
+            email="unknown",
+            event_type="twofa_failure",
+            failure_reason="missing_pending_login",
+        )
         return jsonify({"error": "Nenhum login pendente encontrado"}), 400
 
     user = User.query.filter_by(id=user_id).first()
 
     if not user or not user.two_factor_enabled:
+        # Instrumentação do 2FA: conta não existe ou 2FA não está habilitado.
+        log_security_event(
+            email=user.email if user else "unknown",
+            event_type="twofa_failure",
+            user_id=user.id if user else None,
+            failure_reason="2fa_not_enabled",
+        )
         return jsonify({"error": "Validação de 2FA falhou"}), 401
 
     # Validar o código TOTP
     if not verify_totp_code(user.two_factor_secret, code):
+        # Instrumentação do 2FA: falha de validação do código TOTP.
+        log_security_event(
+            email=user.email,
+            event_type="twofa_failure",
+            user_id=user.id,
+            failure_reason="invalid_code",
+        )
         return jsonify({"error": "Código de 2FA inválido"}), 401
 
     # Limpar a sessão de 2FA pendente
     session.pop("pending_user_id", None)
+
+    # Instrumentação do 2FA: sucesso da validação do código.
+    log_security_event(
+        email=user.email,
+        event_type="twofa_success",
+        user_id=user.id,
+    )
 
     # --- INÍCIO DA NOSSA CRIAÇÃO DE SESSÃO (Quando passa pelo 2FA) ---
     session_obj = create_session(user.id)
@@ -497,12 +561,26 @@ def confirm_2fa():
 
     # Validar o código TOTP com o segredo fornecido
     if not verify_totp_code(secret, code):
+        # Instrumentação do 2FA: falha ao confirmar ativação do 2FA.
+        log_security_event(
+            email=user.email,
+            event_type="twofa_failure",
+            user_id=user.id,
+            failure_reason="invalid_code",
+        )
         return jsonify({"error": "Código TOTP inválido"}), 401
 
     # Ativar 2FA armazenando o segredo no banco de dados
     user.two_factor_enabled = True
     user.two_factor_secret = secret
     db.session.commit()
+
+    # Instrumentação do 2FA: sucesso da validação durante ativação do 2FA.
+    log_security_event(
+        email=user.email,
+        event_type="twofa_success",
+        user_id=user.id,
+    )
 
     return jsonify({"message": "2FA ativado com sucesso"}), 200
 
