@@ -32,6 +32,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a Documentação Técnica de Autenticação e Sessão ](docs/autenticacao.md)**
 - **[Ler a Documentação Técnica de Recuperação de Senha ](docs/recuperacao-senha.md)**
 - **[Ler a Documentação Técnica de Conformidade LGPD ](docs/lgpd.md)**
+- **[Ler a Documentação de Imutabilidade dos Logs de Auditoria ](docs/logs-imutaveis.md)**
 
 ---
 
@@ -49,17 +50,23 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
    ```bash
    docker-compose up -d postgres
    ```
-2. **Configure o Ambiente Virtual:**
+2. **Configure as credenciais no `.env`:**
+   - `DB_ADMIN_USER` e `DB_ADMIN_PASSWORD` são usados pelo PostgreSQL e pelos scripts administrativos.
+   - `DB_APP_USER` e `DB_APP_PASSWORD` são usados pela aplicação.
+   - `DB_APP_ROLE` identifica o role de permissões da aplicação.
+
+   Execute `backend/db/app_role_setup.sql` e `backend/db/log_permissions.sql` com o usuário administrador antes de iniciar a aplicação com o usuário dedicado. Os detalhes estão em [Proteção contra alteração dos logs](docs/logs-imutaveis.md).
+3. **Configure o Ambiente Virtual:**
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
-3. **Inicie o Servidor:**
+4. **Inicie o Servidor:**
    ```bash
    python run.py
    ```
-4. **Acesse no Navegador:**
+5. **Acesse no Navegador:**
    Abra `http://127.0.0.1:5000`
 
 ---
