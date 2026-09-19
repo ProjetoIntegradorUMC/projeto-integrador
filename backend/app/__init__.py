@@ -18,15 +18,15 @@ def create_app():
     db_host = os.getenv("DB_HOST")
     db_port = os.getenv("DB_PORT")
     db_name = os.getenv("DB_NAME")
-    db_user = os.getenv("DB_USER")
-    db_password = os.getenv("DB_PASSWORD")
+    db_user = os.getenv("DB_APP_USER")
+    db_password = os.getenv("DB_APP_PASSWORD")
 
     required_variables = {
         "DB_HOST": db_host,
         "DB_PORT": db_port,
         "DB_NAME": db_name,
-        "DB_USER": db_user,
-        "DB_PASSWORD": db_password,
+        "DB_APP_USER": db_user,
+        "DB_APP_PASSWORD": db_password,
     }
 
     missing_variables = [
