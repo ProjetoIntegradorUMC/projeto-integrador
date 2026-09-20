@@ -33,6 +33,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a Documentação Técnica de Recuperação de Senha ](docs/recuperacao-senha.md)**
 - **[Ler a Documentação Técnica de Conformidade LGPD ](docs/lgpd.md)**
 - **[Ler a Documentação de Imutabilidade dos Logs de Auditoria ](docs/logs-imutaveis.md)**
+- **[Ler a Documentação Técnica do Painel de Auditoria ](docs/auditoria-logs.md)**
 
 ---
 
