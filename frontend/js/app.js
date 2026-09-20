@@ -117,6 +117,8 @@ dashboardSection.addEventListener("click", (event) => {
 
         if (screenId === "mydataScreen") {
             loadLGPDData();
+        } else if (screenId === "auditScreen") {
+            loadAuditData();
         }
     }
 });
@@ -582,6 +584,13 @@ function showDashboard() {
     document.getElementById("dashboardUserName").textContent = currentUser.full_name;
     showDashboardScreen("overviewScreen");
 
+    // Verifica se o usuário é administrador chamando a rota protegida
+    fetch("/admin/logs").then(response => {
+        if (response.ok) {
+            document.getElementById("adminAuditTab").classList.remove("d-none");
+        }
+    }).catch(err => console.error("Erro ao verificar permissão de admin:", err));
+
     // Exibir informações do usuário
     const userInfo = document.getElementById("userInfo");
     userInfo.innerHTML = `
@@ -955,4 +964,54 @@ if (deleteAccountBtn) {
             }
         }
     });
+}
+
+// ==========================================
+// PAINEL DE AUDITORIA E LOGS (ADMINISTRADOR)
+// ==========================================
+async function loadAuditData() {
+    const tableBody = document.getElementById("auditEventsTableBody");
+    try {
+        const response = await fetch("/admin/logs");
+        if (!response.ok) throw new Error("Erro ao buscar logs de auditoria.");
+
+        const data = await response.json();
+
+        // Atualizar Métricas
+        document.getElementById("auditLoginSuccess").textContent = data.metrics.login_success;
+        document.getElementById("auditLoginFailure").textContent = data.metrics.login_failure;
+        document.getElementById("auditTwofaFailure").textContent = data.metrics.twofa_failure;
+        document.getElementById("auditPwdReset").textContent = data.metrics.password_reset_requests;
+
+        // Atualizar Tabela de Eventos Recentes
+        tableBody.innerHTML = "";
+        
+        if (data.recent_events.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhum evento registrado.</td></tr>';
+            return;
+        }
+
+        data.recent_events.forEach(event => {
+            const date = new Date(event.created_at).toLocaleString("pt-BR");
+            
+            // Formatando os badges de tipo de evento para ficar visualmente limpo
+            let badgeClass = "bg-secondary";
+            if (event.type.includes("success")) badgeClass = "bg-success";
+            else if (event.type.includes("failure")) badgeClass = "bg-danger";
+            else if (event.type.includes("request")) badgeClass = "bg-primary";
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td class="ps-3"><small class="text-muted">${date}</small></td>
+                <td><strong>${event.email}</strong></td>
+                <td><span class="badge ${badgeClass}">${event.type}</span></td>
+                <td><small>${event.reason}</small></td>
+            `;
+            tableBody.appendChild(tr);
+        });
+
+    } catch (error) {
+        console.error("Erro no Painel de Auditoria:", error);
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Erro ao carregar dados de auditoria.</td></tr>';
+    }
 }

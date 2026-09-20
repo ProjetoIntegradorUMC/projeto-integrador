@@ -243,6 +243,9 @@
                         <button class="nav-link fw-semibold" type="button" data-dashboard-screen="mydataScreen">
                             Meus dados
                         </button>
+                        <button class="nav-link fw-bold text-dark d-none" type="button" id="adminAuditTab" data-dashboard-screen="auditScreen">
+                            Painel de Auditoria
+                        </button>
                     </nav>
 
                     <section id="overviewScreen" class="dashboard-screen">
@@ -406,6 +409,66 @@
                                             <button class="btn btn-danger" id="deleteAccountBtn">
                                                 Excluir minha conta definitivamente
                                             </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- PAINEL DE AUDITORIA (Exclusivo Admin) -->
+                    <section id="auditScreen" class="dashboard-screen d-none">
+                        <div class="row g-4">
+                            <div class="col-lg-12">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-body">
+                                        <h2 class="h5">Painel de Auditoria e Segurança</h2>
+                                        <p class="text-muted small">Visão geral dos eventos críticos e métricas de segurança do sistema.</p>
+
+                                        <!-- Métricas -->
+                                        <div class="row g-3 mb-4 mt-2" id="auditMetricsContainer">
+                                            <div class="col-6 col-md-3">
+                                                <div class="p-3 border rounded bg-light text-center">
+                                                    <h4 class="mb-0 text-success" id="auditLoginSuccess">0</h4>
+                                                    <small class="text-muted">Logins (Sucesso)</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="p-3 border rounded bg-light text-center">
+                                                    <h4 class="mb-0 text-danger" id="auditLoginFailure">0</h4>
+                                                    <small class="text-muted">Falhas de Login</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="p-3 border rounded bg-light text-center">
+                                                    <h4 class="mb-0 text-warning" id="auditTwofaFailure">0</h4>
+                                                    <small class="text-muted">Falhas de 2FA</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="p-3 border rounded bg-light text-center">
+                                                    <h4 class="mb-0 text-primary" id="auditPwdReset">0</h4>
+                                                    <small class="text-muted">Recuperações de Senha</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Tabela de Logs Recentes -->
+                                        <h3 class="h6 mt-4">Eventos mais recentes</h3>
+                                        <div class="table-responsive border rounded">
+                                            <table class="table table-sm table-hover align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="ps-3 py-2">Data/Hora</th>
+                                                        <th class="py-2">E-mail</th>
+                                                        <th class="py-2">Evento</th>
+                                                        <th class="py-2">Motivo / Detalhe</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="auditEventsTableBody">
+                                                    <tr><td colspan="4" class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> Carregando logs...</td></tr>
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
                                 </div>
