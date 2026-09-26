@@ -18,17 +18,15 @@ Se um usuário errar a senha 5 vezes, a conta é bloqueada por 15 minutos.
 
 ## 3. Gestão de credenciais e criptografia
 
-As senhas dos usuários são armazenadas no banco de dados utilizando hash
-adaptativo com bcrypt, evitando o armazenamento da senha em texto puro.
+As senhas dos usuários não são armazenadas em texto puro. O sistema utiliza o algoritmo **bcrypt** para gerar um hash adaptativo das senhas antes de armazená-las no banco de dados. Durante o processo de autenticação, a senha informada pelo usuário é comparada com o hash armazenado, sem que a senha original precise ser recuperada.
 
-A autenticação de dois fatores utiliza TOTP como segundo fator de
-autenticação.
+A autenticação de dois fatores (2FA) utiliza **TOTP (Time-based One-Time Password)** como segundo fator de autenticação. Os segredos utilizados pelo TOTP não são registrados nos logs de auditoria em texto claro. Os eventos de sucesso e falha relacionados ao 2FA são registrados para permitir a rastreabilidade das autenticações.
 
-A documentação específica sobre criptografia e comunicação segura ainda
-está pendente, pois essa parte pertence a uma entrega específica do projeto
-e não faz parte desta etapa.
+No processo de recuperação de senha, os tokens são gerados de forma segura, armazenados no banco em formato protegido, possuem prazo de expiração e são invalidados após o uso. Os detalhes desse fluxo estão documentados em [Recuperação de senha](recuperacao-senha.md).
 
-**Status:** documentação de criptografia e comunicação segura pendente.
+A documentação específica sobre os mecanismos de **criptografia e comunicação segura** ainda está pendente, pois essa parte pertence a uma entrega específica do projeto e não faz parte desta etapa.
+
+**Status:** documentação específica de criptografia e comunicação segura pendente.
 
 ## 4. Conformidade com a LGPD
 
