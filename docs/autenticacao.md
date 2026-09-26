@@ -16,13 +16,27 @@ Foi decidido **não utilizar JSON Web Tokens (JWT)** para a gestão da sessão f
 Se um usuário errar a senha 5 vezes, a conta é bloqueada por 15 minutos.
 - **Justificativa:** Evitamos o bloqueio definitivo da conta. Se o bloqueio fosse definitivo, um atacante mal-intencionado poderia travar as contas de usuários legítimos de propósito, gerando um ataque de Negação de Serviço (DoS). O bloqueio temporário atrasa bots sem prejudicar o usuário real de forma permanente.
 
-## 3. Conformidade com a LGPD
+## 3. Gestão de credenciais e criptografia
+
+As senhas dos usuários são armazenadas no banco de dados utilizando hash
+adaptativo com bcrypt, evitando o armazenamento da senha em texto puro.
+
+A autenticação de dois fatores utiliza TOTP como segundo fator de
+autenticação.
+
+A documentação específica sobre criptografia e comunicação segura ainda
+está pendente, pois essa parte pertence a uma entrega específica do projeto
+e não faz parte desta etapa.
+
+**Status:** documentação de criptografia e comunicação segura pendente.
+
+## 4. Conformidade com a LGPD
 
 O modelo de dados foi estruturado considerando o **Artigo 18 da LGPD** (Direitos do Titular):
 - **Direito à eliminação:** A tabela `sessions` foi configurada com restrição de chave estrangeira `ON DELETE CASCADE` vinculada ao `user_id`. Isso garante que, se um usuário solicitar a exclusão de seus dados pessoais do sistema, todas as suas sessões e históricos associados serão automaticamente expurgados do banco de dados, sem deixar rastros órfãos.
 - **Minimização de dados:** O cookie salvo na máquina do usuário contém **apenas** o token opaco (sem armazenar e-mail ou nome no navegador) e usa a flag `HttpOnly` para mitigar ataques XSS.
 
-## 4. Diagrama de Fluxo (Login e Força Bruta)
+## 5. Diagrama de Fluxo (Login e Força Bruta)
 
 ```mermaid
 sequenceDiagram
