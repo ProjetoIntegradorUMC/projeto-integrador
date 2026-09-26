@@ -29,6 +29,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 
 ##  Documentação
 
+- **[Visão geral e arquitetura do sistema](docs/visao-geral.md)** — ponto de entrada da documentação técnica
 - **[Ler a Documentação Técnica de Autenticação e Sessão ](docs/autenticacao.md)**
 - **[Ler a Documentação Técnica de Recuperação de Senha ](docs/recuperacao-senha.md)**
 - **[Ler a Documentação Técnica de Conformidade LGPD ](docs/lgpd.md)**
