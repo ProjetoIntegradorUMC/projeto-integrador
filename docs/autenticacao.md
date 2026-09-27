@@ -14,13 +14,13 @@ Foi decidido **não utilizar JSON Web Tokens (JWT)** para a gestão da sessão f
 
 ### Por que bloquear por tempo (Time-Lock) na Força Bruta?
 Se um usuário errar a senha 5 vezes, a conta é bloqueada por 15 minutos.
-- **Justificativa:** Evitamos o bloqueio definitivo da conta. Se o bloqueio fosse definitivo, um atacante mal-intencionado poderia travar as contas de usuários legítimos de propósito, gerando um ataque de Negação de Serviço (DoS). O bloqueio temporário atrasa bots sem prejudicar o usuário real de forma permanente.
+- **Justificativa:** Evitamos o bloqueio definitivo da conta. Se o bloqueio fosse definitivo, um atacante mal-intencionado poderia travar as contas de usuários legítimos de propósito, gerando um ataque de Negação de Serviço (DoS). O bloqueio temporário atrasa bots sem prejudicar o usuário real de forma permanente. Esta abordagem segue as recomendações da norma **NIST SP 800-63B** sobre a mitigação de ataques de adivinhação de senhas on-line, que recomenda limitar o número de tentativas e aplicar atrasos temporais.
 
 ## 3. Gestão de credenciais e criptografia
 
-As senhas dos usuários não são armazenadas em texto puro. O sistema utiliza o algoritmo **bcrypt** para gerar um hash adaptativo das senhas antes de armazená-las no banco de dados. Durante o processo de autenticação, a senha informada pelo usuário é comparada com o hash armazenado, sem que a senha original precise ser recuperada.
+As senhas dos usuários não são armazenadas em texto puro. O sistema utiliza o algoritmo **bcrypt** para gerar um hash adaptativo das senhas antes de armazená-las no banco de dados. Durante o processo de autenticação, a senha informada pelo usuário é comparada com o hash armazenado, sem que a senha original precise ser recuperada. Conforme descrito por Hintzbergen et al. (2018), em sistemas que exigem confidencialidade e proteção de senhas, a criptografia e o uso de hash (criptografia unidirecional) são contramedidas vitais para proteger dados de acesso e manter a integridade do sistema de informação.
 
-A autenticação de dois fatores (2FA) utiliza **TOTP (Time-based One-Time Password)** como segundo fator de autenticação. Os segredos utilizados pelo TOTP não são registrados nos logs de auditoria em texto claro. Os eventos de sucesso e falha relacionados ao 2FA são registrados para permitir a rastreabilidade das autenticações.
+A autenticação de dois fatores (2FA) utiliza **TOTP (Time-based One-Time Password)** como segundo fator de autenticação, seguindo o padrão estabelecido pela **RFC 6238**. Os segredos utilizados pelo TOTP não são registrados nos logs de auditoria em texto claro. Os eventos de sucesso e falha relacionados ao 2FA são registrados para permitir a rastreabilidade das autenticações.
 
 No processo de recuperação de senha, os tokens são gerados de forma segura, armazenados no banco em formato protegido, possuem prazo de expiração e são invalidados após o uso. Os detalhes desse fluxo estão documentados em [Recuperação de senha](recuperacao-senha.md).
 
@@ -58,3 +58,6 @@ sequenceDiagram
         end
     end
 ```
+
+## Referências
+Para consultar as referências bibliográficas, científicas e normativas que fundamentam as decisões deste documento, consulte as **[Referências Técnicas](referencias.md)**.
