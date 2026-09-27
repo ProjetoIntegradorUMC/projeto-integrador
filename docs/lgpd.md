@@ -3,14 +3,14 @@
 Este documento detalha as diretrizes técnicas e as funcionalidades implementadas no sistema Mentory para garantir a adequação à Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018).
 
 ## 1. Base Legal e Consentimento
-O tratamento dos dados pessoais no sistema é pautado na base legal do **Consentimento** (Art. 7º, I, da LGPD).
+O tratamento dos dados pessoais no sistema é pautado na base legal do **Consentimento** (Art. 7º, I, da LGPD - BRASIL, 2018). Conforme Fontes (2015) aponta, para o sucesso e o cumprimento da Política de Segurança da Informação, o usuário deve conhecer e estar de acordo com os termos de consentimento, explicitando assim a sua responsabilidade e o alcance do uso de suas informações.
 
 - **Coleta:** O consentimento é exigido e registrado de forma obrigatória no momento do cadastro do usuário.
 - **Registro:** O sistema armazena a data e a hora exata da concessão (`consent_given_at`) bem como a versão do termo aceito (`consent_version`).
 - **Transparência:** O texto de consentimento informa explicitamente as finalidades do uso dos dados (criação da conta, gerenciamento de monitorias e contato).
 
-## 2. Direitos do Titular (Art. 18 da LGPD)
-O sistema disponibiliza, através do painel do usuário, recursos para consulta dos dados da conta e revogação do consentimento. Quando o direito solicitado ainda não possui uma operação automatizada, o titular recebe uma orientação de atendimento.
+## 2. Direitos do Titular (Art. 18 da LGPD - BRASIL, 2018)
+O sistema disponibiliza, através do painel do usuário, recursos para consulta dos dados da conta e revogação do consentimento, zelando pelo princípio do livre acesso e transparência exigidos pela legislação. Quando o direito solicitado ainda não possui uma operação automatizada, o titular recebe uma orientação de atendimento.
 
 ### 2.1 Direito de Acesso e Portabilidade
 O usuário pode visualizar no painel os dados básicos associados à sua conta, como nome completo, nome de usuário e e-mail.
@@ -31,3 +31,6 @@ Para garantir a integridade e segurança (Art. 6º, VIII) dos dados pessoais arm
 - **Criptografia:** Senhas protegidas via *Hashing* (Bcrypt) com *Salt* gerado aleatoriamente.
 - **MFA (Multi-Factor Authentication):** Suporte opcional à autenticação em duas etapas usando algoritmo TOTP (Time-based One-time Password).
 - **Gerenciamento de Sessão:** Controle estrito do ciclo de vida da sessão do usuário, incluindo expiração e anulação de sessão após a exclusão da conta.
+
+## Referências
+Para consultar as referências bibliográficas, científicas e normativas que fundamentam as decisões deste documento, consulte as **[Referências Técnicas](referencias.md)**.

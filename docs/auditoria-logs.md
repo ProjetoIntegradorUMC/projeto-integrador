@@ -3,7 +3,7 @@
 Este documento detalha a estratégia de auditoria de segurança implementada na plataforma Mentory, visando rastreabilidade de acessos e conformidade com boas práticas de segurança defensiva.
 
 ## 1. Eventos Auditados
-A aplicação mantém o registro histórico e imutável de eventos sensíveis divididos em dois modelos de dados:
+Alinhada às diretrizes da **OWASP Top 10** sobre *Security Logging and Monitoring Failures*, a aplicação mantém o registro histórico e imutável de eventos sensíveis divididos em dois modelos de dados:
 
 ### 1.1 Logs de Autenticação e 2FA (`security_logs`)
 Registra tentativas de acesso e validação de fatores de autenticação:
@@ -23,7 +23,7 @@ Registra o ciclo de vida dos tokens de recuperação:
 * `failure`: Tentativa de uso de token expirado ou inválido.
 
 ## 2. Proteção contra Violação de Logs (Anti-Tampering)
-Para garantir a integridade da trilha de auditoria e impedir que invasores apaguem seus rastros, a proteção foi implementada na **camada de banco de dados**.
+Conforme discutido por Hintzbergen et al. (2018), o princípio da "Integridade" no Triângulo CIA (Confidencialidade, Integridade e Disponibilidade) assegura que a informação permaneça completa, perfeita e inalterada de forma não autorizada. Para garantir a integridade absoluta da trilha de auditoria e impedir que invasores apaguem seus rastros, a proteção foi implementada na **camada de banco de dados**.
 
 As permissões do usuário do banco utilizado pela aplicação (`DB_APP_USER`) foram restritas especificamente para as tabelas `security_logs` e `password_reset_logs`:
 * `GRANT INSERT, SELECT`: A aplicação pode inserir novos logs e consultar o histórico para análise.
@@ -37,3 +37,6 @@ O painel exibe:
 2. Trilha em tempo real: Lista unificada dos 20 eventos mais recentes do sistema (Data, E-mail envolvido, Tipo de Evento e Detalhes da Falha).
 
 *(Insira aqui o Print da tela do Painel de Auditoria funcionando com dados reais)*
+
+## Referências
+Para consultar as referências bibliográficas, científicas e normativas que fundamentam as decisões deste documento, consulte as **[Referências Técnicas](referencias.md)**.
