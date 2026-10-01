@@ -78,10 +78,12 @@ As pendências de maior prioridade são:
 
 1. **Comunicação segura:** disponibilizar HTTPS/TLS, rejeitar ou redirecionar
    HTTP e ativar a flag `Secure` dos cookies em ambientes não locais.
-2. **Proteção do TOTP:** criptografar `two_factor_secret` em repouso, usando
-   uma chave de aplicação separada da `SECRET_KEY` e armazenada fora do código.
-3. **Segredos da aplicação:** remover o fallback de `SECRET_KEY`, exigir a
-   variável no startup e documentá-la no `.env.example`.
+2. **Proteção do TOTP:** ~~criptografar `two_factor_secret` em repouso~~
+   **Concluído:** o campo é cifrado com Fernet usando uma chave de aplicação
+   separada da `SECRET_KEY` e armazenada fora do código.
+3. **Segredos da aplicação:** ~~remover o fallback de `SECRET_KEY`, exigir a
+   variável no startup e documentá-la no `.env.example`~~ **Concluído:** a
+   variável é obrigatória no startup e está documentada no `.env.example`.
 4. **Modo de depuração:** impedir que o servidor seja executado com debug
    habilitado por padrão ou em ambiente exposto.
 
