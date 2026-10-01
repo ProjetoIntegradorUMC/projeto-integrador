@@ -49,7 +49,7 @@ auditoria. Ela não deve ser interpretada como um controle já implementado.
 | Tokens de recuperação | Interceptação do link; comprometimento da caixa de e-mail; exposição do token em logs ou histórico. | Redefinição não autorizada da senha. |
 | Logs de auditoria | Alteração ou exclusão por usuário com privilégios excessivos; falta de registros para investigação. | Perda de evidência e dificuldade para detectar ou responder a incidentes. |
 | Banco de dados | Vazamento, cópia não autorizada, indisponibilidade ou alteração maliciosa. | Comprometimento simultâneo de vários ativos e possível perda de integridade. |
-| Servidor/configuração | `SECRET_KEY` possui fallback fraco e hardcoded; a variável não está no `.env.example`; `debug=True` é iniciado de forma fixa. | Falsificação de sessão, exposição de informações e, em cenário vulnerável, exploração do depurador. |
+| Servidor/configuração | `SECRET_KEY` possui fallback fraco e hardcoded; a variável não está no `.env.example`; o modo de debug depende de configuração explícita do ambiente. | Falsificação de sessão, exposição de informações e, em cenário vulnerável, exploração do depurador. |
 | Serviço de e-mail | Credenciais SMTP comprometidas; falha ou indisponibilidade do provedor; engenharia social. | Interceptação de recuperação de senha ou indisponibilidade do fluxo. |
 | Navegador/dispositivo | XSS, malware, dispositivo compartilhado ou captura do QR code do 2FA. | Roubo de sessão, do segredo TOTP ou do token de recuperação. |
 
@@ -66,7 +66,7 @@ auditoria. Ela não deve ser interpretada como um controle já implementado.
 | Acesso indevido por comprometimento do e-mail | Tokens, credenciais | Alto | Link é enviado ao endereço cadastrado por SMTP com STARTTLS; resposta genérica evita enumeração de contas. | Parcial: depende da segurança da conta e do provedor de e-mail |
 | Adulteração de evidências | Logs de auditoria | Médio | A aplicação não oferece edição/exclusão e os scripts SQL restringem os logs a `SELECT` e `INSERT` para o role da aplicação. | Implementada quando os scripts de permissões são aplicados |
 | Alteração de configurações e falsificação de sessão | Servidor, `SECRET_KEY`, sessões | Alto | A configuração é carregada por variáveis de ambiente, mas há fallback fraco para `SECRET_KEY`. | **Pendente: exigir `SECRET_KEY` forte e remover o fallback hardcoded** |
-| Exploração do depurador em ambiente exposto | Servidor e todos os dados | Alto | Não há controle no código que condicione o debug ao ambiente. | **Pendente: remover `debug=True` fixo e permitir debug apenas por configuração explícita de desenvolvimento** |
+| Exploração do depurador em ambiente exposto | Servidor e todos os dados | Alto | O debug fica desativado por padrão e só é habilitado por configuração explícita do ambiente. | **Mitigado: `FLASK_DEBUG=false` por padrão; habilitar apenas em desenvolvimento** |
 | Exposição excessiva de dados pessoais | Dados cadastrais e acadêmicos | Médio | Consentimento obrigatório com finalidade e versão; consulta, exportação JSON e exclusão em cascata apoiam os direitos do titular. | Implementada |
 | Exclusão incompleta de dados relacionados | Dados pessoais, sessões, monitorias | Médio | Chaves estrangeiras com `ON DELETE CASCADE` removem sessões, ofertas e inscrições relacionadas. | Implementada |
 | Negação de serviço por bloqueio de conta | Contas | Médio | Bloqueio é temporário, evitando bloqueio definitivo provocado por terceiros. | Implementada |
@@ -82,8 +82,6 @@ As pendências de maior prioridade são:
    uma chave de aplicação separada da `SECRET_KEY` e armazenada fora do código.
 3. **Segredos da aplicação:** remover o fallback de `SECRET_KEY`, exigir a
    variável no startup e documentá-la no `.env.example`.
-4. **Modo de depuração:** impedir que o servidor seja executado com debug
-   habilitado por padrão ou em ambiente exposto.
 
 Enquanto essas ações não forem concluídas, o sistema deve ser tratado como
 adequado apenas para desenvolvimento ou ambientes controlados, não como uma
