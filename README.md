@@ -36,6 +36,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a Documentação Técnica de Conformidade LGPD ](docs/lgpd.md)**
 - **[Ler a Documentação de Imutabilidade dos Logs de Auditoria ](docs/logs-imutaveis.md)**
 - **[Ler a Documentação Técnica do Painel de Auditoria ](docs/auditoria-logs.md)**
+- **[Ler a documentação das variáveis de ambiente](docs/configuracao-ambiente.md)**
 
 ---
 
@@ -57,6 +58,21 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
    - `DB_ADMIN_USER` e `DB_ADMIN_PASSWORD` são usados pelo PostgreSQL e pelos scripts administrativos.
    - `DB_APP_USER` e `DB_APP_PASSWORD` são usados pela aplicação.
    - `DB_APP_ROLE` identifica o role de permissões da aplicação.
+   - `SECRET_KEY` protege as sessões Flask e `TOTP_ENCRYPTION_KEY` cifra os
+     segredos do 2FA; ambas são obrigatórias e devem ser geradas fora do código.
+
+   Copie `.env.example` para `.env` e preencha as variáveis de banco, e-mail e
+   aplicação. Gere as chaves de segurança com o ambiente virtual ativado:
+
+   ```bash
+   python -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))"
+   python -c "from cryptography.fernet import Fernet; print('TOTP_ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
+   ```
+
+   Adicione os valores exibidos nas respectivas variáveis do arquivo `.env`.
+   A aplicação recusará iniciar se `SECRET_KEY` ou `TOTP_ENCRYPTION_KEY`
+   estiver ausente ou inválida. Mantenha essas chaves em segredo e não as
+   versione no repositório.
 
    Execute `backend/db/app_role_setup.sql` e `backend/db/log_permissions.sql` com o usuário administrador antes de iniciar a aplicação com o usuário dedicado. Os detalhes estão em [Proteção contra alteração dos logs](docs/logs-imutaveis.md).
 3. **Configure o Ambiente Virtual:**
