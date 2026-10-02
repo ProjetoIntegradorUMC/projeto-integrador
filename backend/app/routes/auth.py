@@ -1,6 +1,6 @@
 import os
 
-from flask import Blueprint, request, jsonify, session, make_response
+from flask import Blueprint, request, jsonify, session, make_response, current_app
 import bcrypt
 from datetime import datetime, timedelta, timezone
 
@@ -420,6 +420,7 @@ def login():
         "session_id",
         session_obj.token,
         httponly=True,
+        secure=current_app.config.get("SESSION_COOKIE_SECURE", False),
         samesite="Lax",
         max_age=30 * 60,  # Expira do navegador em 30 minutos (em segundos)
     )
@@ -498,7 +499,12 @@ def verify_2fa():
     )
 
     response.set_cookie(
-        "session_id", session_obj.token, httponly=True, samesite="Lax", max_age=30 * 60
+        "session_id",
+        session_obj.token,
+        httponly=True,
+        secure=current_app.config.get("SESSION_COOKIE_SECURE", False),
+        samesite="Lax",
+        max_age=30 * 60
     )
 
     return response, 200

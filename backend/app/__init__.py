@@ -55,7 +55,7 @@ def create_app():
 
     # Configuração de sessão para 2FA
     app.config["SESSION_COOKIE_HTTPONLY"] = True
-    app.config["SESSION_COOKIE_SECURE"] = False  # True em produção com HTTPS
+    app.config["SESSION_COOKIE_SECURE"] = os.getenv("SECURE_COOKIES", "false").lower() == "true"
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 
@@ -78,6 +78,20 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
     frontend_path = project_root / "frontend"
+
+    from flask import request, redirect, abort
+
+    @app.before_request
+    def enforce_https():
+        # Em ambiente local rodando com TLS ou proxy reverso configurado corretamente,
+        # exige-se tráfego HTTPS.
+        secure_cookies = os.getenv("SECURE_COOKIES", "false").lower() == "true"
+        if secure_cookies and not request.is_secure:
+            # Tenta pegar se está atrás de um proxy que passou HTTPS
+            forwarded_proto = request.headers.get('X-Forwarded-Proto', '')
+            if forwarded_proto != 'https':
+                # Bloqueia a requisição forçando o uso de HTTPS
+                abort(403, description="Acesso negado. A aplicação exige conexão segura (HTTPS).")
 
     @app.route("/")
     def serve_frontend():
