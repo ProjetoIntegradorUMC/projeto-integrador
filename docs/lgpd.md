@@ -15,7 +15,7 @@ O sistema disponibiliza, através do painel do usuário, recursos para consulta 
 ### 2.1 Direito de Acesso e Portabilidade
 O usuário pode visualizar no painel os dados básicos associados à sua conta, como nome completo, nome de usuário e e-mail.
 
-O download estruturado de todos os dados pessoais ainda não está disponível na versão atual da aplicação. Dados técnicos de segurança, como o *hash* da senha e a chave secreta do Autenticador de Duas Etapas (2FA), não são exibidos ao usuário.
+O sistema fornece um botão "Baixar meus dados (JSON)" no painel do usuário, acionando a rota `/lgpd/export`. Essa funcionalidade permite o download estruturado de todos os dados pessoais associados à conta em um arquivo `meus_dados_lgpd.json`. Para a segurança do sistema, dados sensíveis internos como o *hash* da senha e a chave secreta do Autenticador de Duas Etapas (2FA) não são exportados.
 
 ### 2.2 Direito de Correção dos Dados
 Para solicitar a alteração ou correção de seus dados cadastrais, o titular deve entrar em contato pelo e-mail **projetomentory@gmail.com**. Essa orientação é o mecanismo provisório adotado enquanto não existe uma tela de edição de dados no sistema.
