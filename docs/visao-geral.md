@@ -130,6 +130,12 @@ contra alteração e exclusão pela aplicação.
 Documentação: [Painel de auditoria](auditoria-logs.md) e
 [Imutabilidade dos logs](logs-imutaveis.md).
 
+### Criptografia e Segurança
+
+O projeto exige comunicação criptografada em trânsito (TLS/HTTPS) e armazenamento seguro de dados sensíveis em repouso (segredos TOTP cifrados). O acesso é condicionado por rigorosas validações de variáveis de ambiente.
+
+Documentação: [Criptografia e comunicação segura](criptografia.md).
+
 ## Stack tecnológica
 
 | Camada | Tecnologia | Responsabilidade |
@@ -146,6 +152,7 @@ Documentação: [Painel de auditoria](auditoria-logs.md) e
 Este documento é o ponto de entrada para a documentação do projeto:
 
 - [Autenticação e sessão](autenticacao.md)
+- [Criptografia e Comunicação Segura](criptografia.md)
 - [Recuperação de senha](recuperacao-senha.md)
 - [Conformidade com a LGPD](lgpd.md)
 - [Mapeamento e minimização de dados pessoais](dados-pessoais.md)
