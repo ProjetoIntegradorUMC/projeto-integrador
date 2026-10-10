@@ -5,6 +5,7 @@ from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from sqlalchemy import URL
+from app.two_factor import get_totp_fernet
 
 db = SQLAlchemy()
 
@@ -27,6 +28,8 @@ def create_app():
         "DB_NAME": db_name,
         "DB_APP_USER": db_user,
         "DB_APP_PASSWORD": db_password,
+        "SECRET_KEY": os.getenv("SECRET_KEY"),
+        "TOTP_ENCRYPTION_KEY": os.getenv("TOTP_ENCRYPTION_KEY"),
     }
 
     missing_variables = [
@@ -40,6 +43,9 @@ def create_app():
         raise RuntimeError(
             f"Variáveis de ambiente não configuradas: {', '.join(missing_variables)}"
         )
+
+    # Valida a chave Fernet no startup, antes de aceitar requisições.
+    get_totp_fernet()
 
     connection_url = URL.create(
         drivername="postgresql+psycopg2",
@@ -57,7 +63,7 @@ def create_app():
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SECURE"] = False  # True em produção com HTTPS
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-    app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    app.secret_key = os.environ["SECRET_KEY"]
 
     db.init_app(app)
 
