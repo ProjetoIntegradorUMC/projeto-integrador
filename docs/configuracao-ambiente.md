@@ -76,6 +76,19 @@ Não altere essa chave enquanto houver segredos TOTP cifrados no banco. A
 troca sem um procedimento de recriptografia impede a validação do 2FA dos
 usuários existentes.
 
+## Execução e depuração
+
+### `FLASK_DEBUG`
+
+Controla o modo de depuração do servidor iniciado por `backend/run.py`.
+O valor padrão é `false`, mantendo o depurador desativado em ambientes que
+não definem a variável. Para desenvolvimento local, defina `FLASK_DEBUG=true`
+no arquivo `.env`; não habilite essa opção em ambientes expostos ou de
+produção.
+
+Também são aceitos os valores `1`, `yes` e `on` para habilitar o debug. Qualquer
+outro valor mantém o modo de depuração desativado.
+
 ## Serviço de e-mail
 
 ### `MAIL_SERVER`
@@ -136,6 +149,7 @@ DB_APP_ROLE=mentory_app_role
 
 SECRET_KEY=valor-aleatorio-gerado
 TOTP_ENCRYPTION_KEY=chave-fernet-gerada
+FLASK_DEBUG=true
 
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
