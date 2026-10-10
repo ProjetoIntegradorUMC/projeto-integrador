@@ -1,6 +1,22 @@
 from app import db
 from datetime import datetime, timezone
 from sqlalchemy import UniqueConstraint
+from sqlalchemy.types import TypeDecorator
+
+from app.two_factor import decrypt_totp_secret, encrypt_totp_secret
+
+
+class EncryptedTOTPSecret(TypeDecorator):
+    """Armazena segredos TOTP cifrados e expõe o valor apenas em memória."""
+
+    impl = db.String(255)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        return encrypt_totp_secret(value)
+
+    def process_result_value(self, value, dialect):
+        return decrypt_totp_secret(value)
 
 
 class User(db.Model):
@@ -17,9 +33,9 @@ class User(db.Model):
     # maiores.
     password_hash = db.Column(db.String(255), nullable=False)
 
-    # TOTP secret para 2FA (base32, compatível com Google Authenticator)
+    # O valor persistido é um token Fernet; o segredo Base32 só existe em memória.
     two_factor_enabled = db.Column(db.Boolean, default=False)
-    two_factor_secret = db.Column(db.String(32), nullable=True)
+    two_factor_secret = db.Column(EncryptedTOTPSecret(), nullable=True)
 
     # NOVOS CAMPOS: Proteção contra Força Bruta (Issue #3)
     # Persistimos o contador no banco pois em memória ele zeraria se o servidor reiniciasse.
