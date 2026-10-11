@@ -26,9 +26,8 @@ As variáveis `SECRET_KEY` e `TOTP_ENCRYPTION_KEY` são obrigatórias. A aplica�
 
 No processo de recuperação de senha, os tokens são gerados de forma segura, armazenados no banco em formato protegido, possuem prazo de expiração e são invalidados após o uso. Os detalhes desse fluxo estão documentados em [Recuperação de senha](recuperacao-senha.md).
 
-A documentação específica sobre os mecanismos de **criptografia e comunicação segura** ainda está pendente, pois essa parte pertence a uma entrega específica do projeto e não faz parte desta etapa.
+Para informações sobre o estado atual dos mecanismos de criptografia e comunicação segura, incluindo os riscos identificados e o plano de tratamento, consulte a documentação [Análise de Riscos](analise-riscos.md).
 
-**Status:** documentação específica de criptografia e comunicação segura pendente.
 
 ## 4. Conformidade com a LGPD
 
