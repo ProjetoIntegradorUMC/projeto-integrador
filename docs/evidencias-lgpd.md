@@ -27,6 +27,9 @@ disponibilizadas pela interface do frontend.
 prosseguiu sem o aceite de consentimento porque o campo é obrigatório no
 frontend.
 
+**Evidência Visual:**
+![Cadastro e consentimento LGPD](img/26-lgpd-cadastro-consentimento.png)
+
 ### 2. Oferta de monitoria
 
 1. O Usuário A realizou login.
@@ -60,6 +63,9 @@ Usuário B como inscrição em monitoria.
 Usuário A continha as três seções e a do Usuário B continha a inscrição
 realizada.
 
+**Evidência Visual:**
+![Consulta de dados pessoais em Meus dados](img/27-lgpd-meus-dados.png)
+
 ### 5. Exportação
 
 O conteúdo retornado pela operação de exportação foi validado como JSON
@@ -69,6 +75,9 @@ estruturado e compatível com o que a interface baixa como
 **Evidência textual:** a exportação retornou HTTP `200` para os dois usuários,
 contendo dados pessoais, monitorias e inscrições. O fluxo não expõe senha,
 hash de senha, segredo de 2FA ou token de sessão.
+
+**Evidência Visual:**
+![Exportação de dados pessoais em JSON](img/28-lgpd-exportacao-json.png)
 
 ### 6. Revogação, exclusão e tentativa posterior de acesso
 
@@ -81,6 +90,11 @@ hash de senha, segredo de 2FA ou token de sessão.
 **Evidência textual:** a exclusão do Usuário B retornou HTTP `200`; a consulta
 da sessão após a exclusão retornou HTTP `401`; o novo login retornou HTTP
 `401`. A exclusão do Usuário A também retornou HTTP `200`.
+
+**Evidência Visual:**
+![Revogação de consentimento LGPD](img/29-lgpd-revogacao-consentimento.png)
+
+![Exclusão de conta](img/30-lgpd-exclusao-conta.png)
 
 ## Resultado de aceite
 
