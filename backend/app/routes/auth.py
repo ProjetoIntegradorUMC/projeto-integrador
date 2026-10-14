@@ -608,6 +608,8 @@ def disable_2fa(current_user):
     current_user.two_factor_secret = None
     db.session.commit()
 
+    return jsonify({"message": "2FA desativado com sucesso"}), 200
+
 
 @auth_bp.route("/2fa/status", methods=["GET"])
 @login_required
