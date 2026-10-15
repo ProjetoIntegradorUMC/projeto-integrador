@@ -654,7 +654,7 @@ function showDashboard() {
 
 async function loadTwoFactorStatus() {
     try {
-        const response = await fetch(`/auth/2fa/status?user_id=${currentUser.id}`);
+        const response = await fetch("auth/2fa/status");
         const data = await response.json();
 
         const statusDiv = document.getElementById("twoFactorStatus");
@@ -669,6 +669,8 @@ async function loadTwoFactorStatus() {
             `;
             setup2faSection.classList.add("d-none");
             disable2faSection.classList.remove("d-none");
+            // Permite criar um QR code novo caso o 2fa seja desativado e ativado novamente.
+            delete setup2faSection.querySelector("form").dataset.qrGenerated;
         } else {
             statusDiv.innerHTML = `
                 <div class="alert alert-warning">
@@ -693,11 +695,7 @@ async function loadTwoFactorStatus() {
 async function generateTwoFactorQR() {
     try {
         const response = await fetch("/auth/2fa/setup", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ user_id: currentUser.id })
+            method: "POST"
         });
 
         const data = await response.json();
@@ -754,8 +752,6 @@ confirmTwoFactorForm.addEventListener("submit", async (event) => {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                user_id: currentUser.id,
-                secret: pendingTwoFactorSecret,
                 code
             })
         });
@@ -798,6 +794,7 @@ disableTwoFactorForm.addEventListener("submit", async (event) => {
     disableTwoFactorMessage.innerHTML = "";
 
     const password = document.getElementById("disableTwoFactorPassword").value;
+    const code = document.getElementById("disableTwoFactorCode").value;
 
     try {
         const response = await fetch("/auth/2fa/disable", {
@@ -806,8 +803,8 @@ disableTwoFactorForm.addEventListener("submit", async (event) => {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                user_id: currentUser.id,
-                password
+                password,
+                code
             })
         });
 
@@ -830,6 +827,7 @@ disableTwoFactorForm.addEventListener("submit", async (event) => {
 
         disableTwoFactorForm.reset();
         document.getElementById("disableTwoFactorPassword").value = "";
+        document.getElementById("disableTwoFactorCode").value = "";
 
         // Recarregar status após 2 segundos
         setTimeout(loadTwoFactorStatus, 2000);
