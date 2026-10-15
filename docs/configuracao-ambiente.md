@@ -142,9 +142,9 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=mentory
 DB_ADMIN_USER=postgres
-DB_ADMIN_PASSWORD=senha-administrativa
+DB_ADMIN_PASSWORD=<senha-forte-admin>
 DB_APP_USER=mentory_app
-DB_APP_PASSWORD=senha-da-aplicacao
+DB_APP_PASSWORD=<senha-forte-app>
 DB_APP_ROLE=mentory_app_role
 
 SECRET_KEY=valor-aleatorio-gerado
