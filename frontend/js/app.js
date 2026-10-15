@@ -585,11 +585,18 @@ function showDashboard() {
     showDashboardScreen("overviewScreen");
 
     // Verifica se o usuário é administrador chamando a rota protegida
+    const adminTab = document.getElementById("adminAuditTab");
+    adminTab.classList.add("d-none"); // começa escondida a cada login
     fetch("/admin/logs").then(response => {
         if (response.ok) {
-            document.getElementById("adminAuditTab").classList.remove("d-none");
+            adminTab.classList.remove("d-none");
+        } else {
+            adminTab.classList.add("d-none");
         }
-    }).catch(err => console.error("Erro ao verificar permissão de admin:", err));
+    }).catch(err => {
+        adminTab.classList.add("d-none");
+        console.error("Erro ao verificar permissão de admin:", err);
+    });
 
     // Exibir informações do usuário
     const userInfo = document.getElementById("userInfo");
@@ -993,20 +1000,40 @@ async function loadAuditData() {
 
         data.recent_events.forEach(event => {
             const date = new Date(event.created_at).toLocaleString("pt-BR");
-            
-            // Formatando os badges de tipo de evento para ficar visualmente limpo
+
+            // badgeClass só recebe strings fixas daqui, nunca texto vindo do log.
             let badgeClass = "bg-secondary";
             if (event.type.includes("success")) badgeClass = "bg-success";
             else if (event.type.includes("failure")) badgeClass = "bg-danger";
             else if (event.type.includes("request")) badgeClass = "bg-primary";
 
             const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td class="ps-3"><small class="text-muted">${date}</small></td>
-                <td><strong>${event.email}</strong></td>
-                <td><span class="badge ${badgeClass}">${event.type}</span></td>
-                <td><small>${event.reason}</small></td>
-            `;
+
+            // Cada valor vindo do log entra com textContent: o navegador nunca o interpreta como HTML.
+            const tdDate = document.createElement("td");
+            tdDate.className = "ps-3";
+            const smallDate = document.createElement("small");
+            smallDate.className = "text-muted";
+            smallDate.textContent = date;
+            tdDate.appendChild(smallDate);
+
+            const tdEmail = document.createElement("td");
+            const strongEmail = document.createElement("strong");
+            strongEmail.textContent = event.email;
+            tdEmail.appendChild(strongEmail);
+
+            const tdType = document.createElement("td");
+            const badge = document.createElement("span");
+            badge.className = `badge ${badgeClass}`;
+            badge.textContent = event.type;
+            tdType.appendChild(badge);
+
+            const tdReason = document.createElement("td");
+            const smallReason = document.createElement("small");
+            smallReason.textContent = event.reason;
+            tdReason.appendChild(smallReason);
+
+            tr.append(tdDate, tdEmail, tdType, tdReason);
             tableBody.appendChild(tr);
         });
 
