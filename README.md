@@ -90,6 +90,30 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
 
 ---
 
+## 🧪 Testes Automatizados
+
+Os testes usam um banco separado do de desenvolvimento (`projeto_integrador_test`), para que o `drop_all()` dos testes nunca toque nos dados reais.
+
+1. **Crie o banco de testes (uma vez), com o container do Postgres rodando:**
+```bash
+   set -a
+   source .env
+   set +a
+
+   docker exec -e PGPASSWORD="$DB_ADMIN_PASSWORD" projeto-integrador-postgres \
+     psql -v ON_ERROR_STOP=1 -U "$DB_ADMIN_USER" -d "$DB_NAME" \
+     -c "CREATE DATABASE projeto_integrador_test OWNER \"$DB_APP_USER\";"
+```
+2. **Instale as dependências de desenvolvimento e rode os testes**, com o ambiente virtual ativado:
+```bash
+   pip install -r requirements-dev.txt
+   python -m pytest -v
+```
+
+Não aplique o `log_permissions.sql` no banco de testes: os testes recriam as tabelas a cada execução, e o usuário da aplicação precisa ser dono delas.
+
+---
+
 ## 📦 Release
 
 O workflow em `.github/workflows/release.yml` cria uma release ao enviar uma tag no formato `v*`.
