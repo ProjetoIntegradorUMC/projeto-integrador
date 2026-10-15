@@ -51,4 +51,4 @@ def test_forgot_password_com_email_malicioso_e_registrado_literalmente(
     event = next(
         e for e in response.get_json()["recent_events"] if e["email"] == payload
     )
-    assert event["type"] == "password_failure"
+    assert event["type"] == "password_failure"]
