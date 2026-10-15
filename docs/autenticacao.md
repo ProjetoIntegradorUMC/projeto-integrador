@@ -20,13 +20,14 @@ Se um usuário errar a senha 5 vezes, a conta é bloqueada por 15 minutos.
 
 As senhas dos usuários não são armazenadas em texto puro. O sistema utiliza o algoritmo **bcrypt** para gerar um hash adaptativo das senhas antes de armazená-las no banco de dados. Durante o processo de autenticação, a senha informada pelo usuário é comparada com o hash armazenado, sem que a senha original precise ser recuperada. Conforme descrito por Hintzbergen et al. (2018), em sistemas que exigem confidencialidade e proteção de senhas, a criptografia e o uso de hash (criptografia unidirecional) são contramedidas vitais para proteger dados de acesso e manter a integridade do sistema de informação.
 
-A autenticação de dois fatores (2FA) utiliza **TOTP (Time-based One-Time Password)** como segundo fator de autenticação, seguindo o padrão estabelecido pela **RFC 6238**. Os segredos utilizados pelo TOTP não são registrados nos logs de auditoria em texto claro. Os eventos de sucesso e falha relacionados ao 2FA são registrados para permitir a rastreabilidade das autenticações.
+A autenticação de dois fatores (2FA) utiliza **TOTP (Time-based One-Time Password)** como segundo fator de autenticação, seguindo o padrão estabelecido pela **RFC 6238**. O segredo TOTP é cifrado com **Fernet** antes de ser persistido no banco; a chave usada para essa cifragem é a variável `TOTP_ENCRYPTION_KEY`, separada da `SECRET_KEY` e mantida fora do código. Os segredos utilizados pelo TOTP não são registrados nos logs de auditoria em texto claro. Os eventos de sucesso e falha relacionados ao 2FA são registrados para permitir a rastreabilidade das autenticações.
+
+As variáveis `SECRET_KEY` e `TOTP_ENCRYPTION_KEY` são obrigatórias. A aplicação falha no startup quando alguma delas está ausente ou quando a chave Fernet é inválida. Uma chave Fernet pode ser gerada com `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
 
 No processo de recuperação de senha, os tokens são gerados de forma segura, armazenados no banco em formato protegido, possuem prazo de expiração e são invalidados após o uso. Os detalhes desse fluxo estão documentados em [Recuperação de senha](recuperacao-senha.md).
 
-A documentação específica sobre os mecanismos de **criptografia e comunicação segura** ainda está pendente, pois essa parte pertence a uma entrega específica do projeto e não faz parte desta etapa.
+Para informações sobre o estado atual dos mecanismos de criptografia e comunicação segura, incluindo os riscos identificados e o plano de tratamento, consulte a documentação [Análise de Riscos](analise-riscos.md).
 
-**Status:** documentação específica de criptografia e comunicação segura pendente.
 
 ## 4. Conformidade com a LGPD
 
