@@ -82,14 +82,14 @@ backToLogin.addEventListener("click", () => {
 });
 
 logoutBtn.addEventListener("click", async () => {
-    // 1. Avisa o backend para destruir a sessão no banco e limpar o cookie
+    // Avisa o backend para eliminar a sessão no banco e limpar o cookie
     try {
         await fetch("/auth/logout", { method: "POST" });
     } catch (error) {
         console.error("Erro ao fazer logout no servidor:", error);
     }
 
-    // 2. Limpa o estado no frontend e volta pra tela de login
+    // Limpa o estado no frontend e volta pra tela de login
     currentUser = null;
     authCard.classList.remove("dashboard-active");
     dashboardSection.classList.add("d-none");
@@ -124,36 +124,71 @@ dashboardSection.addEventListener("click", (event) => {
 });
 
 function renderTutoringCard(tutoringOffer, action = "") {
-    const actionButton = action === "enroll"
-        ? `<button class="btn btn-primary btn-sm tutoring-action enroll-tutoring"
-                data-tutoring-offer-id="${tutoringOffer.id}">
-                <span class="me-1">+</span> Inscrever-se
-           </button>`
-        : action === "unsubscribe"
-            ? `<button class="btn btn-outline-danger btn-sm tutoring-action unsubscribe-tutoring"
-                data-tutoring-offer-id="${tutoringOffer.id}">
-                Desinscrever-se
-               </button>`
-            : "";
+    const col = document.createElement("div");
+    col.className = "col-md-6";
 
-    return `
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <h6 class="card-title">${tutoringOffer.disciplina}</h6>
-                    <p class="card-text mb-3">${tutoringOffer.descricao}</p>
-                    <div class="d-flex justify-content-between align-items-center gap-2">
-                        <small class="text-muted text-truncate">Monitor: ${tutoringOffer.monitor.full_name}</small>
-                        ${actionButton}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+    const card = document.createElement("div");
+    card.className = "card border-0 shadow-sm h-100";
+
+    const body = document.createElement("div");
+    body.className = "card-body";
+
+    // textContent coloca o dado como texto o navegador nunca vai o interpretar como HTML.
+    const title = document.createElement("h6");
+    title.className = "card-title";
+    title.textContent = tutoringOffer.disciplina;
+
+    const description = document.createElement("p");
+    description.className = "card-text mb-3";
+    description.textContent = tutoringOffer.descricao;
+
+    const footer = document.createElement("div");
+    footer.className = "d-flex justify-content-between align-items-center gap-2";
+
+    const monitor = document.createElement("small");
+    monitor.className = "text-muted text-truncate";
+    monitor.textContent = `Monitor: ${tutoringOffer.monitor.full_name}`;
+    footer.appendChild(monitor);
+
+    if (action === "enroll" || action === "unsubscribe") {
+        const button = document.createElement("button");
+        // Vira data-tutoring-offer-id no HTML, igual ao que o resto do código já lê.
+        button.dataset.tutoringOfferId = tutoringOffer.id;
+
+        if (action === "enroll") {
+            button.className = "btn btn-primary btn-sm tutoring-action enroll-tutoring";
+            const plus = document.createElement("span");
+            plus.className = "me-1";
+            plus.textContent = "+";
+            button.append(plus, " Inscrever-se");
+        } else {
+            button.className = "btn btn-outline-danger btn-sm tutoring-action unsubscribe-tutoring";
+            button.textContent = "Desinscrever-se";
+        }
+        footer.appendChild(button);
+    }
+
+    body.append(title, description, footer);
+    card.appendChild(body);
+    col.appendChild(card);
+    return col;
 }
 
 function renderEmptyMessage(message) {
-    return `<p class="text-muted">${message}</p>`;
+    const p = document.createElement("p");
+    p.className = "text-muted";
+    p.textContent = message;
+    return p;
+}
+
+// Limpa o container e preenche com os cartões ou com mensagem de lista vazia.
+function renderTutoringList(container, items, action, emptyMessage) {
+    container.replaceChildren();
+    if (!items.length) {
+        container.appendChild(renderEmptyMessage(emptyMessage));
+        return;
+    }
+    items.forEach(item => container.appendChild(renderTutoringCard(item, action)));
 }
 
 async function loadTutoringOffers() {
@@ -173,15 +208,12 @@ async function loadTutoringOffers() {
             throw new Error(availableData.error || mineData.error);
         }
 
-        availableContainer.innerHTML = availableData.monitorias.length
-            ? availableData.monitorias.map(item => renderTutoringCard(item, "enroll")).join("")
-            : renderEmptyMessage("Nenhuma monitoria disponível no momento.");
-        offeredContainer.innerHTML = mineData.oferecidas.length
-            ? mineData.oferecidas.map(item => renderTutoringCard(item)).join("")
-            : renderEmptyMessage("Você ainda não ofereceu uma monitoria.");
-        enrolledContainer.innerHTML = mineData.inscricoes.length
-            ? mineData.inscricoes.map(item => renderTutoringCard(item.monitoria, "unsubscribe")).join("")
-            : renderEmptyMessage("Você ainda não está inscrito em uma monitoria.");
+        renderTutoringList(availableContainer, availableData.monitorias, "enroll",
+            "Nenhuma monitoria disponível no momento.");
+        renderTutoringList(offeredContainer, mineData.oferecidas, "",
+            "Você ainda não ofereceu uma monitoria.");
+        renderTutoringList(enrolledContainer, mineData.inscricoes.map(item => item.monitoria), "unsubscribe",
+            "Você ainda não está inscrito em uma monitoria.");
     } catch (error) {
         availableContainer.innerHTML = `
             <div class="alert alert-danger">Não foi possível carregar as monitorias.</div>
