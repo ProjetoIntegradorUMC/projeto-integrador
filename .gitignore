@@ -12,3 +12,6 @@ __pycache__/
 
 # Configurações do VS Code
 .vscode/
+
+# Cache do pytest
+.pytest_cache/
