@@ -115,13 +115,11 @@ Define a credencial da conta SMTP. Ela é necessária para o envio de
 mensagens e deve ser tratada como segredo. Quando o provedor exigir, use
 uma senha de aplicativo em vez da senha principal da conta.
 
-## Administração e aplicação
+## Aplicação
 
-### `ADMIN_EMAIL`
-
-Define o endereço de e-mail autorizado a acessar o painel de auditoria.
-Esse controle evita adicionar um campo de privilégio administrativo ao
-modelo de usuário e restringe a visualização dos logs de segurança.
+**Acesso administrativo:** a variável `ADMIN_EMAIL` foi removida e não tem
+mais efeito. O acesso ao painel de auditoria é concedido pelo comando
+`provision-admin`, descrito em [Auditoria e Logs](auditoria-logs.md).
 
 ### `APP_BASE_URL`
 
@@ -156,7 +154,6 @@ MAIL_PORT=587
 MAIL_USERNAME=conta@example.com
 MAIL_PASSWORD=senha-de-aplicativo
 
-ADMIN_EMAIL=administrador@example.com
 APP_BASE_URL=http://localhost:5000
 ```
 

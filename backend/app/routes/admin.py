@@ -1,4 +1,3 @@
-import os
 from flask import Blueprint, jsonify
 from app.utils.sessions import login_required
 from app.models import SecurityLog, PasswordResetLog
@@ -11,14 +10,11 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 def get_logs(current_user):
     """
     Retorna os logs de segurança e métricas agregadas para o Painel de Auditoria.
-    O acesso é restrito estritamente a administradores. Para evitar a criação
-    desnecessária de novos campos no banco de dados (princípio de minimização),
-    utilizamos uma variável de ambiente ADMIN_EMAIL para validar a autorização.
+    O acesso é restrito estritamente a administradores: contas com is_admin=True,
+    concedido apenas pelo comando provision-admin.
     """
-    admin_email = os.environ.get("ADMIN_EMAIL")
-
-    # Se a variável não estiver configurada ou o e-mail não bater, bloqueia o acesso
-    if not admin_email or current_user.email != admin_email:
+    # Se o usuário não for administrador, bloqueia o acesso
+    if not current_user.is_admin:
         return (
             jsonify({"error": "Acesso negado. Requer privilégios de administrador."}),
             403,

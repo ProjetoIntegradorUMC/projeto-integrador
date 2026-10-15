@@ -83,6 +83,10 @@ def create_app():
     app.register_blueprint(lgpd_bp, url_prefix="/lgpd")
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
+    from app.cli import register_cli
+
+    register_cli(app)
+
     frontend_path = project_root / "frontend"
 
     @app.route("/")

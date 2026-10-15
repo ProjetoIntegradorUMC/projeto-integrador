@@ -11,7 +11,6 @@ TEST_DB_NAME = "projeto_integrador_test"
 os.environ["DB_NAME"] = TEST_DB_NAME
 os.environ["SECRET_KEY"] = "chave-somente-para-testes"
 os.environ["TOTP_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
-os.environ["ADMIN_EMAIL"] = "admin-teste@example.com"
 
 from app import create_app, db
 from app.models import User
@@ -44,12 +43,13 @@ def client(flask_app):
 
 @pytest.fixture()
 def admin_headers(flask_app):
-    """Cria o admin (e-mail = ADMIN_EMAIL) com sessão ativa e devolve o cookie."""
+    """Cria o admin provisionado (is_admin=True) com sessão ativa e devolve o cookie."""
     with flask_app.app_context():
         admin = User(
             username="admin",
             full_name="Admin Teste",
-            email=os.environ["ADMIN_EMAIL"],
+            email="admin-teste@example.com",
+            is_admin=True,
             password_hash="hash-nao-usado-no-teste",
             consent_given_at=datetime.now(timezone.utc),
             consent_version="1.0",
