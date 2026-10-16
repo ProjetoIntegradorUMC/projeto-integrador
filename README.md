@@ -37,6 +37,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a Documentação de Imutabilidade dos Logs de Auditoria ](docs/logs-imutaveis.md)**
 - **[Ler a Documentação Técnica do Painel de Auditoria ](docs/auditoria-logs.md)**
 - **[Ler a documentação das variáveis de ambiente](docs/configuracao-ambiente.md)**
+- **[Ler a Documentação de Segurança no Pipeline de CI/CD](docs/pipeline-seguranca.md)**
 
 ---
 
