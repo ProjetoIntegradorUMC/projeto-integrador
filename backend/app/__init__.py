@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from sqlalchemy import URL
@@ -88,6 +88,25 @@ def create_app():
     register_cli(app)
 
     frontend_path = project_root / "frontend"
+
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://cdn.jsdelivr.net; "
+            "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'"
+        )
+        if request.is_secure or os.getenv("SECURE_COOKIES", "false").lower() == "true":
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+        return response
 
     @app.route("/")
     def serve_frontend():
