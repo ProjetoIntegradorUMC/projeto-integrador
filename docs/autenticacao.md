@@ -20,6 +20,14 @@ Se um usuário errar a senha 5 vezes, a conta é bloqueada por 15 minutos.
 
 As senhas dos usuários não são armazenadas em texto puro. O sistema utiliza o algoritmo **bcrypt** para gerar um hash adaptativo das senhas antes de armazená-las no banco de dados. Durante o processo de autenticação, a senha informada pelo usuário é comparada com o hash armazenado, sem que a senha original precise ser recuperada. Conforme descrito por Hintzbergen et al. (2018), em sistemas que exigem confidencialidade e proteção de senhas, a criptografia e o uso de hash (criptografia unidirecional) são contramedidas vitais para proteger dados de acesso e manter a integridade do sistema de informação.
 
+### 3.1. Política de Validação de Senhas e Limite do Bcrypt (72 bytes)
+
+Conforme estabelecido no achado **V19 da Auditoria de Segurança v2.0** e alinhado ao **NIST SP 800-63B**, o Mentory implementa validação estrita de entradas e controle de tamanho de senhas:
+- **Comprimento Mínimo:** 8 caracteres, garantindo entropia suficiente contra tentativas de adivinhação.
+- **Limite Máximo (72 bytes em UTF-8):** Decorrente da arquitetura interna da cifra Eksblowfish utilizada pelo `bcrypt`.
+- **Rejeição Explícita (Sem Truncamento Silencioso):** Senhas com mais de 72 bytes são rejeitadas com HTTP `400 Bad Request` no cadastro e na redefinição. O sistema **não trunca silenciosamente** a entrada, evitando que duas senhas distintas com o mesmo prefixo gerem hashes equivalentes.
+- **Tratamento de Exceções sem Erro 500:** No login e nos endpoints autenticados, payloads malformados ou senhas com tamanho excedente são tratados via `safe_check_password()`, retornando HTTP `401 Unauthorized` ou `400 Bad Request` de maneira previsível e sem expor tracebacks ou exceções `500`.
+
 A autenticação de dois fatores (2FA) utiliza **TOTP (Time-based One-Time Password)** como segundo fator de autenticação, seguindo o padrão estabelecido pela **RFC 6238**. O segredo TOTP é cifrado com **Fernet** antes de ser persistido no banco; a chave usada para essa cifragem é a variável `TOTP_ENCRYPTION_KEY`, separada da `SECRET_KEY` e mantida fora do código. Os segredos utilizados pelo TOTP não são registrados nos logs de auditoria em texto claro. Os eventos de sucesso e falha relacionados ao 2FA são registrados para permitir a rastreabilidade das autenticações.
 
 As variáveis `SECRET_KEY` e `TOTP_ENCRYPTION_KEY` são obrigatórias. A aplicação falha no startup quando alguma delas está ausente ou quando a chave Fernet é inválida. Uma chave Fernet pode ser gerada com `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
