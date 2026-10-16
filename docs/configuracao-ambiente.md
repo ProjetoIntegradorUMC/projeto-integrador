@@ -103,6 +103,13 @@ Define a porta do servidor SMTP. O valor padrão é `587`, normalmente usado
 com STARTTLS. A porta precisa corresponder à configuração do servidor de
 e-mail escolhido.
 
+### `MAIL_TIMEOUT`
+
+Define o tempo limite máximo em segundos para operações de rede com o servidor
+SMTP (conexão, negociação TLS e envio). O valor padrão é `10` segundos. Essa
+restrição evita que falhas ou instabilidades de rede prendam conexões e
+provoquem indisponibilidade na aplicação.
+
 ### `MAIL_USERNAME`
 
 Define a conta usada para autenticar no servidor SMTP e também o endereço
