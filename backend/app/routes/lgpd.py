@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, make_response
+from flask import Blueprint, jsonify, make_response, request
+import bcrypt
 from app import db
 from app.models import User
 from app.utils.sessions import login_required
@@ -72,9 +73,21 @@ def export_data(current_user):
 def delete_account(current_user):
     """
     LGPD (Art. 18): Direito à eliminação dos dados.
-    Deleta a conta do usuário. O ON DELETE CASCADE configurado nos models
-    garante que sessões, inscrições e monitorias sejam apagadas em cascata.
+    Deleta a conta do usuário. Exige confirmação prévia da senha atual
+    do titular para impedir exclusões acidentais, cliques indevidos ou
+    ataques como CSRF e sessões sequestradas.
+    O ON DELETE CASCADE configurado nos models garante que sessões, inscrições
+    e monitorias sejam apagadas em cascata.
     """
+    data = request.get_json(silent=True) or {}
+    password = data.get("password")
+
+    if not password:
+        return jsonify({"error": "A confirmação de senha é obrigatória para excluir a conta."}), 400
+
+    if not bcrypt.checkpw(password.encode("utf-8"), current_user.password_hash.encode("utf-8")):
+        return jsonify({"error": "Senha incorreta."}), 401
+
     db.session.delete(current_user)
     db.session.commit()
     

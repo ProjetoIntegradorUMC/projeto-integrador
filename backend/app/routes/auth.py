@@ -739,7 +739,17 @@ def get_me(current_user):
 def revoke_consent(current_user):
     """
     Revogar o consentimento implica excluir permanentemente a conta.
+    Exige confirmação da senha do titular para evitar revogação/exclusão acidental.
     """
+    data = request.get_json(silent=True) or {}
+    password = data.get("password")
+
+    if not password:
+        return jsonify({"error": "A confirmação de senha é obrigatória para revogar o consentimento."}), 400
+
+    if not bcrypt.checkpw(password.encode("utf-8"), current_user.password_hash.encode("utf-8")):
+        return jsonify({"error": "Senha incorreta."}), 401
+
     db.session.delete(current_user)
     db.session.commit()
 
