@@ -45,6 +45,12 @@ class User(db.Model):
     # seguro que bloqueio definitivo para mitigar negação de serviço (DoS) direcionada.
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
 
+    # Proteção do 2FA, contador separado do de senha, que zera a cada login.
+    two_factor_failed_attempts = db.Column(db.Integer, default=0, nullable=False)
+    two_factor_locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+    # Último período de 30s aceito: impede reutilizar o mesmo código (replay).
+    two_factor_last_step = db.Column(db.Integer, nullable=True)
+
 
 class TutoringOffer(db.Model):
     __tablename__ = "tutoring_offers"

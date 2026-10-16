@@ -2,6 +2,8 @@ import os
 
 from flask import Blueprint, request, jsonify, session, make_response
 import bcrypt
+import math
+
 from datetime import datetime, timedelta, timezone
 
 from app import db
@@ -17,6 +19,7 @@ from app.two_factor import (
     get_provisioning_uri,
     generate_qr_code,
     verify_totp_code,
+    verify_totp_step,
 )
 
 from app.utils.password_reset import (
@@ -37,6 +40,14 @@ auth_bp = Blueprint("auth", __name__)
 # dificultando ataques de força bruta sem tornar o login inviável.
 BCRYPT_ROUNDS = 12
 
+# Proteção do 2FA: 5 falhas bloqueiam a verificação por 15 minutos.
+TWO_FACTOR_MAX_ATTEMPTS = 5
+TWO_FACTOR_LOCK_MINUTES = 15
+
+def minutos_restantes(locked_until, now):
+    """Minutos que faltam para o fim do bloqueio, arredondados para cima (mínimo 1)."""
+    segundos = (locked_until - now).total_seconds()
+    return max(1, math.ceil(segundos / 60))
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
@@ -447,7 +458,7 @@ def verify_2fa():
         )
         return jsonify({"error": "Nenhum login pendente encontrado"}), 400
 
-    user = User.query.filter_by(id=user_id).first()
+    user = User.query.filter_by(id=user_id).with_for_update().first()
 
     if not user or not user.two_factor_enabled:
         # Instrumentação do 2FA: conta não existe ou 2FA não está habilitado.
@@ -459,16 +470,65 @@ def verify_2fa():
         )
         return jsonify({"error": "Validação de 2FA falhou"}), 401
 
-    # Validar o código TOTP
-    if not verify_totp_code(user.two_factor_secret, code):
-        # Instrumentação do 2FA: falha de validação do código TOTP.
+    now = datetime.now(timezone.utc)
+
+    # Bloqueio temporário: nem chega a testar o código.
+    if user.two_factor_locked_until and user.two_factor_locked_until > now:
         log_security_event(
             email=user.email,
             event_type="twofa_failure",
             user_id=user.id,
-            failure_reason="invalid_code",
+            failure_reason="2fa_locked",
         )
+        minutos = minutos_restantes(user.two_factor_locked_until, now)
+        return (
+            jsonify({"error": f"Muitas tentativas. Tente novamente em {minutos} minuto(s)."}),
+            423,
+        )
+
+    # Valida o código e descobre o período de 30s em que ele esta.
+    step = verify_totp_step(user.two_factor_secret, code)
+
+    # Replay: período igual ou anterior ao último aceito é recusado.
+    replay = (
+        step is not None
+        and user.two_factor_last_step is not None
+        and step <= user.two_factor_last_step
+    )
+
+    if step is None or replay:
+        user.two_factor_failed_attempts += 1
+        reason = "code_reused" if replay else "invalid_code"
+
+        locked = user.two_factor_failed_attempts >= TWO_FACTOR_MAX_ATTEMPTS
+        if locked:
+            user.two_factor_locked_until = now + timedelta(minutes=TWO_FACTOR_LOCK_MINUTES)
+            user.two_factor_failed_attempts = 0
+            session.pop("pending_user_id", None)  # obriga a refazer a senha
+            reason = "too_many_failed_attempts"
+
+        db.session.commit()
+        # O código digitado não vai para o log.
+        log_security_event(
+            email=user.email,
+            event_type="twofa_failure",
+            user_id=user.id,
+            failure_reason=reason,
+        )
+        if locked:
+            minutos = minutos_restantes(user.two_factor_locked_until, now)
+            return (
+                jsonify({"error": f"Muitas tentativas. Tente novamente em {minutos} minuto(s)."}),
+                423,
+            )
+        # Resposta igual para código errado e reutilizado e não revela qual deles foi.
         return jsonify({"error": "Código de 2FA inválido"}), 401
+
+    # Código aceito, guarda o período usado (anti-replay) e zera o contador.
+    user.two_factor_last_step = step
+    user.two_factor_failed_attempts = 0
+    user.two_factor_locked_until = None
+    db.session.commit()
 
     # Limpar a sessão de 2FA pendente
     session.pop("pending_user_id", None)

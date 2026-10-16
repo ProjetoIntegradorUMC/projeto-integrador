@@ -4,7 +4,7 @@ from io import BytesIO
 import base64
 import os
 from functools import lru_cache
-
+from datetime import datetime, timezone
 from cryptography.fernet import Fernet, InvalidToken
 
 
@@ -77,8 +77,26 @@ def generate_qr_code(provisioning_uri):
     return f"data:image/png;base64,{img_str}"
 
 
-def verify_totp_code(secret, code):
-    """Valida um código TOTP. Aceita códigos do presente e dos últimos 2 períodos."""
+# Tolerância de relógio: período atual ±1 (30s para cada lado).
+TOTP_WINDOW = 1
+
+
+def verify_totp_step(secret, code, for_time=None):
+    """Valida o código e devolve o período (step) de 30s em que ele vale, ou None.
+
+    for_time existe só para os testes poderem controlar o relógio.
+    """
     totp = pyotp.TOTP(secret)
-    # valid_window=2 permite margem de sincronização do relógio
-    return totp.verify(code, valid_window=2)
+    for_time = for_time or datetime.now(timezone.utc)
+    current_step = totp.timecode(for_time)
+
+    for offset in range(-TOTP_WINDOW, TOTP_WINDOW + 1):
+        # strings_equal compara em tempo constante, sem vazar informação.
+        if pyotp.utils.strings_equal(str(code), totp.at(for_time, offset)):
+            return current_step + offset
+    return None
+
+
+def verify_totp_code(secret, code):
+    """Valida um código TOTP (período atual ±1). Usado em confirmar e desativar 2FA."""
+    return verify_totp_step(secret, code) is not None
