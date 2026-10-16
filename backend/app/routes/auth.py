@@ -12,6 +12,7 @@ from app.utils.sessions import (
     create_session,
     get_current_session,
     revoke_session,
+    revoke_all_user_sessions,
     login_required,
 )
 from app.two_factor import (
@@ -281,6 +282,9 @@ def reset_password():
     # Marca o token como utilizado.
     reset_token.used_at = now
 
+    # Revoga todas as sessões ativas existentes do usuário (Issue #83)
+    revoke_all_user_sessions(user.id, commit=False)
+
     db.session.commit()
 
     # Registra a redefinição bem-sucedida.
@@ -291,7 +295,7 @@ def reset_password():
         token_hash_suffix=token_hash[-16:],
     )
 
-    return jsonify({"message": "Senha redefinida com sucesso."}), 200
+    return jsonify({"message": "Senha redefinida com sucesso. Faça login novamente com a nova senha."}), 200
 
 
 @auth_bp.route("/login", methods=["POST"])
