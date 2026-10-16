@@ -29,6 +29,7 @@ from app.utils.password_reset import (
     log_security_event,
 )
 from app.utils.email import send_email
+from app.utils.rate_limit import get_client_ip, is_limited, too_many_requests
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -51,6 +52,9 @@ def minutos_restantes(locked_until, now):
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
+    retry_after = is_limited("register", "ip", get_client_ip())
+    if retry_after:
+        return too_many_requests(retry_after)
     data = request.get_json()
 
     full_name = data.get("full_name")
@@ -95,12 +99,26 @@ def register():
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
     """Inicia o processo de recuperação de senha por e-mail."""
+    retry_after = is_limited("forgot_password", "ip", get_client_ip())
+    if retry_after:
+        return too_many_requests(retry_after)
     data = request.get_json() or {}
     email = data.get("email")
 
     if not email:
         return jsonify({"error": "E-mail é obrigatório"}), 400
+        # Acima do limite, responde igual a um pedido normal e não envia nada.
+    # A contagem vale para e-mails existentes e inexistentes.
 
+    if is_limited("forgot_password", "email", str(email).strip().lower()):
+        return (
+            jsonify(
+                {
+                    "message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."
+                }
+            ),
+            200,
+        )
     # Procura o usuário pelo e-mail informado.
     user = User.query.filter_by(email=email).first()
 
@@ -181,9 +199,14 @@ def forgot_password():
             token_hash_suffix=token_hash[-16:],
         )
 
+        # Resposta genérica: um 500 só para contas existentes revelaria quem tem conta.
         return (
-            jsonify({"error": "Não foi possível enviar o e-mail de recuperação."}),
-            500,
+            jsonify(
+                {
+                    "message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."
+                }
+            ),
+            200,
         )
 
     # Registra a solicitação bem-sucedida no log de auditoria.
