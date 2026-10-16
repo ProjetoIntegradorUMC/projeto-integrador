@@ -33,6 +33,12 @@ class User(db.Model):
     # maiores.
     password_hash = db.Column(db.String(255), nullable=False)
 
+    # Privilégio administrativo só é concedido pelo comando
+    # provision-admin, nunca pelo cadastro.
+    is_admin = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
+
     # O valor persistido é um token Fernet; o segredo Base32 só existe em memória.
     two_factor_enabled = db.Column(db.Boolean, default=False)
     two_factor_secret = db.Column(EncryptedTOTPSecret(), nullable=True)
