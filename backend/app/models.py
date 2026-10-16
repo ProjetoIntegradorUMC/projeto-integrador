@@ -33,6 +33,12 @@ class User(db.Model):
     # maiores.
     password_hash = db.Column(db.String(255), nullable=False)
 
+    # Privilégio administrativo só é concedido pelo comando
+    # provision-admin, nunca pelo cadastro.
+    is_admin = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
+
     # O valor persistido é um token Fernet; o segredo Base32 só existe em memória.
     two_factor_enabled = db.Column(db.Boolean, default=False)
     two_factor_secret = db.Column(EncryptedTOTPSecret(), nullable=True)
@@ -44,6 +50,12 @@ class User(db.Model):
     # Armazena até quando o usuário está bloqueado. Bloqueio por tempo é mais
     # seguro que bloqueio definitivo para mitigar negação de serviço (DoS) direcionada.
     locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # Proteção do 2FA, contador separado do de senha, que zera a cada login.
+    two_factor_failed_attempts = db.Column(db.Integer, default=0, nullable=False)
+    two_factor_locked_until = db.Column(db.DateTime(timezone=True), nullable=True)
+    # Último período de 30s aceito: impede reutilizar o mesmo código (replay).
+    two_factor_last_step = db.Column(db.Integer, nullable=True)
 
 
 class TutoringOffer(db.Model):

@@ -365,9 +365,14 @@
                                     <div class="alert alert-success">2FA está ativado nesta conta.</div>
                                     <form id="disableTwoFactorForm">
                                         <label for="disableTwoFactorPassword" class="form-label">Senha</label>
+                                        <input type="password" class="form-control" id="disableTwoFactorPassword"
+                                                autocomplete="current-password" required>
+
+                                        <label for="disableTwoFactorCode" class="form-label">Código do app autenticador</label>
                                         <div class="input-group">
-                                            <input type="password" class="form-control" id="disableTwoFactorPassword"
-                                                required>
+                                            <input type="text" class="form-control" id="disableTwoFactorCode"
+                                                placeholder="Código do aplicativo" inputmode="numeric" maxlength="6"
+                                                autocomplete=""one-time-code" required>
                                             <button type="submit" class="btn btn-outline-danger">Desativar 2FA</button>
                                         </div>
                                     </form>

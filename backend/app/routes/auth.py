@@ -2,6 +2,8 @@ import os
 
 from flask import Blueprint, request, jsonify, session, make_response, current_app
 import bcrypt
+import math
+
 from datetime import datetime, timedelta, timezone
 
 from app import db
@@ -17,6 +19,7 @@ from app.two_factor import (
     get_provisioning_uri,
     generate_qr_code,
     verify_totp_code,
+    verify_totp_step,
 )
 
 from app.utils.password_reset import (
@@ -37,6 +40,14 @@ auth_bp = Blueprint("auth", __name__)
 # dificultando ataques de força bruta sem tornar o login inviável.
 BCRYPT_ROUNDS = 12
 
+# Proteção do 2FA: 5 falhas bloqueiam a verificação por 15 minutos.
+TWO_FACTOR_MAX_ATTEMPTS = 5
+TWO_FACTOR_LOCK_MINUTES = 15
+
+def minutos_restantes(locked_until, now):
+    """Minutos que faltam para o fim do bloqueio, arredondados para cima (mínimo 1)."""
+    segundos = (locked_until - now).total_seconds()
+    return max(1, math.ceil(segundos / 60))
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
@@ -448,7 +459,7 @@ def verify_2fa():
         )
         return jsonify({"error": "Nenhum login pendente encontrado"}), 400
 
-    user = User.query.filter_by(id=user_id).first()
+    user = User.query.filter_by(id=user_id).with_for_update().first()
 
     if not user or not user.two_factor_enabled:
         # Instrumentação do 2FA: conta não existe ou 2FA não está habilitado.
@@ -460,16 +471,65 @@ def verify_2fa():
         )
         return jsonify({"error": "Validação de 2FA falhou"}), 401
 
-    # Validar o código TOTP
-    if not verify_totp_code(user.two_factor_secret, code):
-        # Instrumentação do 2FA: falha de validação do código TOTP.
+    now = datetime.now(timezone.utc)
+
+    # Bloqueio temporário: nem chega a testar o código.
+    if user.two_factor_locked_until and user.two_factor_locked_until > now:
         log_security_event(
             email=user.email,
             event_type="twofa_failure",
             user_id=user.id,
-            failure_reason="invalid_code",
+            failure_reason="2fa_locked",
         )
+        minutos = minutos_restantes(user.two_factor_locked_until, now)
+        return (
+            jsonify({"error": f"Muitas tentativas. Tente novamente em {minutos} minuto(s)."}),
+            423,
+        )
+
+    # Valida o código e descobre o período de 30s em que ele esta.
+    step = verify_totp_step(user.two_factor_secret, code)
+
+    # Replay: período igual ou anterior ao último aceito é recusado.
+    replay = (
+        step is not None
+        and user.two_factor_last_step is not None
+        and step <= user.two_factor_last_step
+    )
+
+    if step is None or replay:
+        user.two_factor_failed_attempts += 1
+        reason = "code_reused" if replay else "invalid_code"
+
+        locked = user.two_factor_failed_attempts >= TWO_FACTOR_MAX_ATTEMPTS
+        if locked:
+            user.two_factor_locked_until = now + timedelta(minutes=TWO_FACTOR_LOCK_MINUTES)
+            user.two_factor_failed_attempts = 0
+            session.pop("pending_user_id", None)  # obriga a refazer a senha
+            reason = "too_many_failed_attempts"
+
+        db.session.commit()
+        # O código digitado não vai para o log.
+        log_security_event(
+            email=user.email,
+            event_type="twofa_failure",
+            user_id=user.id,
+            failure_reason=reason,
+        )
+        if locked:
+            minutos = minutos_restantes(user.two_factor_locked_until, now)
+            return (
+                jsonify({"error": f"Muitas tentativas. Tente novamente em {minutos} minuto(s)."}),
+                423,
+            )
+        # Resposta igual para código errado e reutilizado e não revela qual deles foi.
         return jsonify({"error": "Código de 2FA inválido"}), 401
+
+    # Código aceito, guarda o período usado (anti-replay) e zera o contador.
+    user.two_factor_last_step = step
+    user.two_factor_failed_attempts = 0
+    user.two_factor_locked_until = None
+    db.session.commit()
 
     # Limpar a sessão de 2FA pendente
     session.pop("pending_user_id", None)
@@ -511,26 +571,20 @@ def verify_2fa():
 
 
 @auth_bp.route("/2fa/setup", methods=["POST"])
-def setup_2fa():
+@login_required
+def setup_2fa(current_user):
     """Gera um novo segredo TOTP e retorna o QR code para configuração."""
-    data = request.get_json()
-    user_id = data.get("user_id")
+    # Se já tem 2FA ativo, precisa desativar antes de gerar um novo segredo.
+    if current_user.two_factor_enabled:
+        return jsonify({"error": "2FA já está ativo"}), 409
 
-    if not user_id:
-        return jsonify({"error": "user_id é obrigatório"}), 400
-
-    user = User.query.filter_by(id=user_id).first()
-
-    if not user:
-        return jsonify({"error": "Usuário não encontrado"}), 404
-
-    # Gerar um novo segredo TOTP
     secret = generate_totp_secret()
 
-    # Gerar URI de provisionamento para o QR code
-    provisioning_uri = get_provisioning_uri(secret, user.email)
+    #O segredo fica guardado no servidor, junto com o dono. O cliente não escolhe mais o segredo.
+    session["pending_2fa_secret"] = secret
+    session["pending_2fa_user_id"] = current_user.id
 
-    # Gerar a imagem QR code em base64
+    provisioning_uri = get_provisioning_uri(secret, current_user.email)
     qr_code_data = generate_qr_code(provisioning_uri)
 
     return (
@@ -543,106 +597,91 @@ def setup_2fa():
             }
         ),
         200,
-    )
+        )
 
 
 @auth_bp.route("/2fa/confirm", methods=["POST"])
-def confirm_2fa():
+@login_required
+def confirm_2fa(current_user):
     """Confirma a ativação de 2FA após o usuário validar o código com seu app authenticator."""
-    data = request.get_json()
-    user_id = data.get("user_id")
-    secret = data.get("secret")
+    data = request.get_json(silent=True) or {}
     code = data.get("code")
 
-    if not user_id or not secret or not code:
+    if not code:
         return (
             jsonify({"error": "user_id, secret e code são obrigatórios"}),
             400,
         )
 
-    user = User.query.filter_by(id=user_id).first()
+    # O segredo vem da sessão do servidor, nunca da requisição do cliente.
+    secret = session.get("pending_2fa_secret")
+    pending_user_id = session.get("pending_2fa_user_id")
 
-    if not user:
-        return jsonify({"error": "Usuário não encontrado"}), 404
+    # Agora tem que existir e pertencer ao mesmo usuário que está tentando confirmar.
+    if not secret or pending_user_id != current_user.id:
+        return jsonify({"error": "Configuração de 2FA não iniciada ou expirada"}), 400
 
-    # Validar o código TOTP com o segredo fornecido
     if not verify_totp_code(secret, code):
-        # Instrumentação do 2FA: falha ao confirmar ativação do 2FA.
         log_security_event(
-            email=user.email,
+            email=current_user.email,
             event_type="twofa_failure",
-            user_id=user.id,
+            user_id=current_user.id,
             failure_reason="invalid_code",
         )
         return jsonify({"error": "Código TOTP inválido"}), 401
 
-    # Ativar 2FA armazenando o segredo no banco de dados
-    user.two_factor_enabled = True
-    user.two_factor_secret = secret
+    current_user.two_factor_enabled = True
+    current_user.two_factor_secret = secret
     db.session.commit()
 
-    # Instrumentação do 2FA: sucesso da validação durante ativação do 2FA.
+    #Só limpa depois de confirmar, para não perder o segredo caso a validação venha falhar.
+    session.pop("pending_2fa_secret", None)
+    session.pop("pending_2fa_user_id", None)
+
     log_security_event(
-        email=user.email,
+        email=current_user.email,
         event_type="twofa_success",
-        user_id=user.id,
+        user_id=current_user.id,
     )
 
     return jsonify({"message": "2FA ativado com sucesso"}), 200
 
-
 @auth_bp.route("/2fa/disable", methods=["POST"])
-def disable_2fa():
+@login_required
+def disable_2fa(current_user):
     """Desativa 2FA para o usuário."""
-    data = request.get_json()
-    user_id = data.get("user_id")
+    data = request.get_json(silent=True) or {}
     password = data.get("password")
+    code = data.get("code")
 
-    if not user_id or not password:
-        return jsonify({"error": "user_id e password são obrigatórios"}), 400
+    if not password or not code:
+        return jsonify({"error": "password e code são obrigatórios"}), 400
 
-    user = User.query.filter_by(id=user_id).first()
-
-    if not user:
-        return jsonify({"error": "Usuário não encontrado"}), 404
+    if not current_user.two_factor_enabled:
+        return jsonify({"error": "2FA não está ativo"}), 400
 
     # Verificar senha antes de permitir desativar 2FA
     password_valid = bcrypt.checkpw(
-        password.encode("utf-8"), user.password_hash.encode("utf-8")
+        password.encode("utf-8"), current_user.password_hash.encode("utf-8")
     )
+    code_valid = verify_totp_code(current_user.two_factor_secret, code)
 
-    if not password_valid:
-        return jsonify({"error": "Senha inválida"}), 401
+    # Aqui não revela se foi a senha ou o código que falhou.
+    if not password_valid or not code_valid:
+        return jsonify({"error": "Senha ou código inválido"}), 401
 
-    # Desativar 2FA
-    user.two_factor_enabled = False
-    user.two_factor_secret = None
+    current_user.two_factor_enabled = False
+    current_user.two_factor_secret = None
     db.session.commit()
 
     return jsonify({"message": "2FA desativado com sucesso"}), 200
 
 
 @auth_bp.route("/2fa/status", methods=["GET"])
-def get_2fa_status():
-    """Retorna o status de 2FA do usuário."""
-    user_id = request.args.get("user_id")
-
-    if not user_id:
-        return jsonify({"error": "user_id é obrigatório"}), 400
-
-    user = User.query.filter_by(id=user_id).first()
-
-    if not user:
-        return jsonify({"error": "Usuário não encontrado"}), 404
-
-    return (
-        jsonify(
-            {
-                "two_factor_enabled": user.two_factor_enabled,
-            }
-        ),
-        200,
-    )
+@login_required
+def get_2fa_status(current_user):
+    """Retorna o status de 2FA do usuário logado."""
+    return jsonify({"two_factor_enabled": current_user.two_factor_enabled}), 200
 
 
 @auth_bp.route("/logout", methods=["POST"])

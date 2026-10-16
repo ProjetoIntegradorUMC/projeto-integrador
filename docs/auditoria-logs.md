@@ -30,13 +30,34 @@ As permissões do usuário do banco utilizado pela aplicação (`DB_APP_USER`) f
 * `REVOKE UPDATE, DELETE`: A aplicação tem **permissão negada** pelo PostgreSQL caso tente alterar ou apagar qualquer log existente. Nenhuma rota ou injeção de SQL será capaz de burlar esta restrição no nível da aplicação.
 
 ## 3. Painel de Análise
-Uma interface de análise foi disponibilizada para consolidar as métricas de segurança, visível apenas para contas configuradas na variável de ambiente `ADMIN_EMAIL`.
+Uma interface de análise foi disponibilizada para consolidar as métricas de segurança, visível apenas para contas com acesso administrativo, concedido exclusivamente pelo comando `provision-admin` (veja a seção 4).
 
 O painel exibe:
 1. Agregadores de incidentes críticos: Totais de sucessos e falhas de login, falhas de 2FA e requisições de senha.
 2. Trilha em tempo real: Lista unificada dos 20 eventos mais recentes do sistema (Data, E-mail envolvido, Tipo de Evento e Detalhes da Falha).
 
 *(Insira aqui o Print da tela do Painel de Auditoria funcionando com dados reais)*
+
+
+## 4. Provisionamento do administrador
+
+O acesso ao painel depende da coluna `users.is_admin`, que o cadastro nunca altera. Sem nenhuma conta provisionada, o painel fica inacessível (`403`).
+
+Para conceder o acesso, a conta precisa existir. Execute, a partir da pasta `backend` e com o ambiente virtual ativo:
+
+```bash
+flask --app app provision-admin EMAIL_DA_CONTA
+```
+
+O comando mostra o id, o usuário e o nome da conta e pede confirmação. Confira que a conta é realmente a do administrador antes de confirmar. Para remover o acesso, use `--revoke`. A revogação vale na próxima requisição, porque `is_admin` é lido do banco a cada acesso.
+
+Bancos já existentes precisam da coluna nova:
+
+```bash
+ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE;
+```
+
+Depois da migração, ninguém é administrador até rodar o comando.
 
 ## Referências
 Para consultar as referências bibliográficas, científicas e normativas que fundamentam as decisões deste documento, consulte as **[Referências Técnicas](referencias.md)**.

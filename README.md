@@ -54,10 +54,16 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
    ```bash
    docker-compose up -d postgres
    ```
+   > O `.env` precisa estar preenchido antes deste comando; veja o passo 2.
+
 2. **Configure as credenciais no `.env`:**
    - `DB_ADMIN_USER` e `DB_ADMIN_PASSWORD` são usados pelo PostgreSQL e pelos scripts administrativos.
    - `DB_APP_USER` e `DB_APP_PASSWORD` são usados pela aplicação.
    - `DB_APP_ROLE` identifica o role de permissões da aplicação.
+   - Gere cada senha com `python -c "import secrets; print(secrets.token_urlsafe(32))"` e use senhas **diferentes** para o administrador e para a aplicação. Nunca faça commit do `.env`.
+   - O backend conecta com `DB_APP_USER` (privilégios limitados). `DB_ADMIN_*` é usado só pelo container do PostgreSQL e por scripts administrativos.
+   - O `docker-compose.yml` publica o PostgreSQL apenas em `127.0.0.1`: só o seu computador acessa o banco. Para acessar de outra máquina, use um túnel SSH (`ssh -L 5432:127.0.0.1:5432 usuario@servidor`) ou VPN, em vez de abrir a porta para a rede.
+   - Se o banco já existia, mudar a senha no `.env` não altera a senha dentro do PostgreSQL. Troque-a com `\password <usuario>` no `psql` (`docker exec -it projeto-integrador-postgres psql -U <DB_ADMIN_USER> -d <DB_NAME>`) ou recrie o volume com `docker compose down -v` (apaga os dados).
    - `SECRET_KEY` protege as sessões Flask e `TOTP_ENCRYPTION_KEY` cifra os
      segredos do 2FA; ambas são obrigatórias e devem ser geradas fora do código.
 
@@ -87,6 +93,30 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
    ```
 5. **Acesse no Navegador:**
    Abra `http://127.0.0.1:5000`
+
+---
+
+## 🧪 Testes Automatizados
+
+Os testes usam um banco separado do de desenvolvimento (`projeto_integrador_test`), para que o `drop_all()` dos testes nunca toque nos dados reais.
+
+1. **Crie o banco de testes (uma vez), com o container do Postgres rodando:**
+```bash
+set -a
+source .env
+set +a
+
+docker exec -e PGPASSWORD="$DB_ADMIN_PASSWORD" projeto-integrador-postgres \
+   psql -v ON_ERROR_STOP=1 -U "$DB_ADMIN_USER" -d "$DB_NAME" \
+   -c "CREATE DATABASE projeto_integrador_test OWNER \"$DB_APP_USER\";"
+```
+2. **Instale as dependências de desenvolvimento e rode os testes**, com o ambiente virtual ativado:
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -v
+```
+
+Não aplique o `log_permissions.sql` no banco de testes: os testes recriam as tabelas a cada execução, e o usuário da aplicação precisa ser dono delas.
 
 ---
 

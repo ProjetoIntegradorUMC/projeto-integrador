@@ -160,6 +160,38 @@ Não houve autenticação indevida, erro de SQL exposto ou informação interna 
 
 ---
 
+## 6. XSS armazenado no painel de auditoria
+
+### Objetivo
+
+Verificar se um valor malicioso enviado no campo de e-mail de uma tentativa de login anônima é interpretado como HTML ou JavaScript quando o administrador abre o painel de auditoria.
+
+### Execução
+
+Foi enviada uma tentativa de login sem autenticação, com um e-mail contendo uma tag HTML com manipulador de evento JavaScript:
+
+```bash
+curl -X POST http://127.0.0.1:5000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"<img src=x onerror=alert(1)>","password":"x"}'
+```
+
+Em seguida, o painel de auditoria foi aberto com a conta de administrador.
+
+Além do teste manual realizado, foi criado um teste automatizado (`tests/test_audit_xss.py`) que cobre três payloads (`<img onerror>`, `<script>` e `"><svg onload>`) em dois fluxos anônimos que gravam o e-mail informado nos logs: `/auth/login` e `/auth/forgot-password`. Para cada payload, o teste verifica a resposta da rota, a persistência do evento com o e-mail exatamente como enviado e a devolução do valor literal, em JSON, pelo endpoint `/admin/logs`.
+
+### Resultado
+
+**Passou.**
+
+O login foi recusado com `401`, e o evento foi preservado no log para investigação. No painel, o conteúdo foi exibido como texto, sem execução de JavaScript.
+
+### Evidência
+
+![XSS armazenado exibido como texto no painel](img/26-xss-painel-auditoria.png)
+
+---
+
 ## Resumo dos resultados
 
 | Teste | Resultado |
@@ -169,5 +201,6 @@ Não houve autenticação indevida, erro de SQL exposto ou informação interna 
 | Acesso sem sessão válida | Passou |
 | Alteração/exclusão dos logs | Passou |
 | SQL Injection no login | Passou |
+| XSS armazenado no painel de auditoria | Passou |
 
 Todos os testes de segurança previstos foram executados e documentados, com evidências correspondentes aos resultados obtidos.
