@@ -24,7 +24,7 @@ def send_email(to_email: str, subject: str, body: str) -> None:
     message["Subject"] = subject
     message.set_content(body)
 
-    with smtplib.SMTP(smtp_server, smtp_port) as server:
+    with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
         server.starttls()
         server.login(username, password)
         server.send_message(message)

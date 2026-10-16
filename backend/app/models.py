@@ -272,3 +272,12 @@ class PasswordResetToken(db.Model):
             cascade="all, delete",
         ),
     )
+
+
+class RateLimitCounter(db.Model):
+    __tablename__ = "rate_limit_counters"
+
+    # operação:escopo:digest HMAC do IP ou do e-mail (nunca o valor puro).
+    key = db.Column(db.String(128), primary_key=True)
+    count = db.Column(db.Integer, nullable=False, default=0)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
