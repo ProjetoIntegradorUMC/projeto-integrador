@@ -44,8 +44,23 @@ const confirmAccountDeletion = document.getElementById("confirmAccountDeletion")
 let currentUser = null;
 let pendingTwoFactorSecret = null;
 let pendingEnrollmentAction = null;
+let pendingDeletionEndpoint = "/lgpd/delete";
+let pendingDeletionMethod = "DELETE";
+
 const enrollmentModal = new bootstrap.Modal(enrollmentConfirmationModal);
 const accountDeletionModal = new bootstrap.Modal(accountDeletionConfirmationModal);
+
+function openAccountDeletionModal(endpoint, method, title) {
+    pendingDeletionEndpoint = endpoint;
+    pendingDeletionMethod = method;
+    const titleEl = document.getElementById("accountDeletionConfirmationTitle");
+    const pwdInput = document.getElementById("deleteAccountPassword");
+    const errDiv = document.getElementById("deleteAccountError");
+    if (titleEl) titleEl.textContent = title;
+    if (pwdInput) pwdInput.value = "";
+    if (errDiv) errDiv.textContent = "";
+    accountDeletionModal.show();
+}
 
 // SEÇÃO DE NAVEGAÇÃO
 
@@ -649,42 +664,11 @@ function showDashboard() {
     revokeConsentBtn.classList.remove("d-none");
 
     revokeConsentBtn.onclick = () => {
-        accountDeletionModal.show();
-    };
-
-    confirmAccountDeletion.onclick = async () => {
-        confirmAccountDeletion.disabled = true;
-
-        try {
-            const response = await fetch("/auth/consent/revoke", {
-                method: "POST"
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                alert(data.error || "Não foi possível revogar o consentimento.");
-                return;
-            }
-
-            accountDeletionModal.hide();
-            currentUser = null;
-            authCard.classList.remove("dashboard-active");
-            dashboardSection.classList.add("d-none");
-            loginSection.classList.remove("d-none");
-            loginForm.reset();
-            loginMessage.innerHTML = `
-                <div class="alert alert-success">
-                    ${data.message}
-                </div>
-            `;
-            showDashboardScreen("overviewScreen");
-
-        } catch (error) {
-            alert("Não foi possível conectar ao servidor.");
-        } finally {
-            confirmAccountDeletion.disabled = false;
-        }
+        openAccountDeletionModal(
+            "/auth/consent/revoke",
+            "POST",
+            "Confirmar revogação de consentimento"
+        );
     };
     // Carregar status de 2FA
     loadTwoFactorStatus();
@@ -980,25 +964,62 @@ if (exportDataBtn) {
 
 const deleteAccountBtn = document.getElementById("deleteAccountBtn");
 if (deleteAccountBtn) {
-    deleteAccountBtn.addEventListener("click", async () => {
-        const confirmation = confirm("Tem certeza que deseja EXCLUIR DEFINITIVAMENTE sua conta e todos os seus dados pessoais? Esta ação NÃO pode ser desfeita e você perderá acesso ao Mentory.");
-        
-        if (confirmation) {
-            try {
-                const response = await fetch("/lgpd/delete", { method: "DELETE" });
-                
-                if (response.ok) {
-                    alert("Sua conta foi excluída com sucesso.");
-                    // Redireciona para recarregar o app
-                    window.location.reload();
+    deleteAccountBtn.addEventListener("click", () => {
+        openAccountDeletionModal(
+            "/lgpd/delete",
+            "DELETE",
+            "Confirmar exclusão definitiva da conta"
+        );
+    });
+}
+
+if (confirmAccountDeletion) {
+    confirmAccountDeletion.addEventListener("click", async () => {
+        const passwordInput = document.getElementById("deleteAccountPassword");
+        const errorDiv = document.getElementById("deleteAccountError");
+        const password = passwordInput ? passwordInput.value : "";
+
+        if (!password) {
+            if (errorDiv) errorDiv.textContent = "Informe sua senha atual para autorizar a exclusão.";
+            if (passwordInput) passwordInput.focus();
+            return;
+        }
+
+        if (errorDiv) errorDiv.textContent = "";
+        confirmAccountDeletion.disabled = true;
+
+        try {
+            const response = await fetch(pendingDeletionEndpoint, {
+                method: pendingDeletionMethod,
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (errorDiv) {
+                    errorDiv.textContent = data.error || "Não foi possível confirmar a exclusão.";
                 } else {
-                    const data = await response.json();
-                    alert("Erro ao excluir conta: " + (data.error || "Tente novamente."));
+                    alert(data.error || "Não foi possível confirmar a exclusão.");
                 }
-            } catch (error) {
-                alert("Erro de conexão ao tentar excluir a conta.");
-                console.error(error);
+                return;
             }
+
+            accountDeletionModal.hide();
+            alert(data.message || "Conta e dados pessoais excluídos com sucesso.");
+            window.location.reload();
+
+        } catch (error) {
+            if (errorDiv) {
+                errorDiv.textContent = "Não foi possível conectar ao servidor.";
+            } else {
+                alert("Não foi possível conectar ao servidor.");
+            }
+        } finally {
+            confirmAccountDeletion.disabled = false;
         }
     });
 }
