@@ -12,6 +12,7 @@ from app.utils.validators import (
 from app.routes.auth import register, login, reset_password
 
 app = Flask(__name__)
+app.secret_key = "chave-somente-para-testes"
 app.config["TESTING"] = True
 
 
@@ -86,40 +87,28 @@ def test_get_json_payload_com_corpos_invalidos():
         assert get_json_payload(request) == {"email": "teste@exemplo.com"}
 
 
-def test_register_rejeita_senha_fora_dos_limites():
+@pytest.mark.parametrize(
+    "password, mensagem_esperada",
+    [
+        ("123", "no mínimo 8"),
+        ("X" * 73, "não pode exceder 72 bytes"),
+    ],
+    ids=["senha_curta", "senha_acima_de_72_bytes"],
+)
+def test_register_rejeita_senha_fora_dos_limites(client, password, mensagem_esperada):
     """Endpoint de registro rejeita senhas curtas ou > 72 bytes com HTTP 400 sem crash."""
-    # Senha curta (< 8)
-    with app.test_request_context(
+    response = client.post(
         "/auth/register",
-        method="POST",
         json={
             "full_name": "Teste",
             "username": "teste",
             "email": "teste@exemplo.com",
-            "password": "123",
+            "password": password,
             "consent_given": True,
         },
-    ):
-        resp, code = register()
-        assert code == 400
-        assert "no mínimo 8" in resp.get_json()["error"]
-
-    # Senha longa (> 72 bytes)
-    with app.test_request_context(
-        "/auth/register",
-        method="POST",
-        json={
-            "full_name": "Teste",
-            "username": "teste",
-            "email": "teste@exemplo.com",
-            "password": "X" * 73,
-            "consent_given": True,
-        },
-    ):
-        resp, code = register()
-        assert code == 400
-        assert "não pode exceder 72 bytes" in resp.get_json()["error"]
-
+    )
+    assert response.status_code == 400
+    assert mensagem_esperada in response.get_json()["error"]
 
 def test_login_com_senha_acima_de_72_bytes_retorna_401_sem_erro_500():
     """Login com senha gigantesca não gera erro 500 no bcrypt, retornando 401 Credenciais inválidas."""
