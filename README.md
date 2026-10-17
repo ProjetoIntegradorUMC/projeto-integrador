@@ -53,13 +53,7 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
 
 ### Passo a Passo
 
-1. **Suba o Banco de Dados:**
-   ```bash
-   docker-compose up -d postgres
-   ```
-   > O `.env` precisa estar preenchido antes deste comando; veja o passo 2.
-
-2. **Configure as credenciais no `.env`:**
+1. **Configure as credenciais no `.env`:**
    - `DB_ADMIN_USER` e `DB_ADMIN_PASSWORD` são usados pelo PostgreSQL e pelos scripts administrativos.
    - `DB_APP_USER` e `DB_APP_PASSWORD` são usados pela aplicação.
    - `DB_APP_ROLE` identifica o role de permissões da aplicação.
@@ -83,19 +77,20 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
    estiver ausente ou inválida. Mantenha essas chaves em segredo e não as
    versione no repositório.
 
-   Execute `backend/db/app_role_setup.sql` e `backend/db/log_permissions.sql` com o usuário administrador antes de iniciar a aplicação com o usuário dedicado. Os detalhes estão em [Proteção contra alteração dos logs](docs/logs-imutaveis.md).
-3. **Configure o Ambiente Virtual:**
+2. **Configure e inicie todo o ambiente:**
    ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
+   bash setup.sh
    ```
-4. **Inicie o Servidor:**
-   ```bash
-   python run.py
-   ```
-5. **Acesse no Navegador:**
+   O script cria o ambiente virtual, instala as dependências, sobe o
+   PostgreSQL, cria as entidades usando os models, aplica e valida os
+   privilégios mínimos e inicia o backend. Não é necessário executar a
+   aplicação previamente nem rodar comandos SQL manualmente.
+
+3. **Acesse no Navegador:**
    Abra `http://127.0.0.1:5000`
+
+Para interromper o backend, use `Ctrl+C`. O PostgreSQL permanece no Docker e
+pode ser parado com `docker compose stop postgres`.
 
 ---
 
