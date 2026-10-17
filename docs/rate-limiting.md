@@ -15,6 +15,9 @@ Os valores ficam em `LIMITS`, em `backend/app/utils/rate_limit.py`.
 ### Por que esses valores
 
 - **Cadastro, 10 por hora por IP:** o usuário legítimo se cadastra uma vez. O limite é maior que 1 porque alunos de uma mesma rede compartilham o mesmo IP. Cada tentativa custa um hash bcrypt, que é o recurso que o abuso consome.
+- **Login, 20 por 15 minutos por IP:** limita automação sem bloquear uma conta inteira por
+  causa de tráfego abusivo de um único endereço. A política de 5 falhas consecutivas
+  por conta continua sendo aplicada atomicamente no banco.
 - **Recuperação, 5 por 15 minutos por IP:** cobre os erros de digitação e novas tentativas, e barra automações. A janela possui a validade de 15 minutos do token.
 - **Recuperação, 3 por hora por e-mail:** o usuário raramente precisa de mais de 3 links por hora. Esse limite protege a caixa de entrada e a cota SMTP, mesmo contra ataques vindos de vários IPs.
 
@@ -37,7 +40,7 @@ A lógica fica isolada em `rate_limit.py`. Se o tráfego crescer, o armazenament
 ## 4. Privacidade e logs
 
 - A chave do contador usa um HMAC (com a `SECRET_KEY`) do IP ou do e-mail, nunca o valor puro.
-- O primeiro bloqueio de cada janela gera um evento `rate_limited` em `security_logs`, com `failure_reason` `register_ip`, `forgot_password_ip` ou `forgot_password_email`. O IP não é gravado. Senhas e tokens nunca entram no log.
+- O primeiro bloqueio de cada janela gera um evento `rate_limited` em `security_logs`, com `failure_reason` `login_ip`, `register_ip`, `forgot_password_ip` ou `forgot_password_email`. O IP não é gravado. Senhas e tokens nunca entram no log.
 - Só o primeiro bloqueio da janela é registrado, para um atacante não encher a trilha da auditoria.
 
 ## 5. Limitações conhecidas

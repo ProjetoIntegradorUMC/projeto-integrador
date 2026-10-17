@@ -13,7 +13,18 @@ Foi decidido **não utilizar JSON Web Tokens (JWT)** para a gestão da sessão f
 - **Nossa solução:** Usamos um token opaco gerado por `secrets.token_urlsafe(32)`. O token fica salvo no banco de dados (`table sessions`). Quando o usuário faz logout, nós preenchemos o campo `revoked_at` no banco, invalidando a sessão **imediatamente**.
 
 ### Por que bloquear por tempo (Time-Lock) na Força Bruta?
-Se um usuário errar a senha 5 vezes, a conta é bloqueada por 15 minutos.
+Após 5 falhas consecutivas de senha, a conta fica bloqueada por 15 minutos. O contador
+é incrementado com um `UPDATE` atômico no banco; quando o bloqueio expira, a primeira
+falha inicia uma nova sequência. Um login bem-sucedido zera o contador e o bloqueio
+expirado.
+- **Mitigação complementar:** a rota de login também limita 20 requisições por IP a
+cada 15 minutos. Assim, o bloqueio da conta não é a única barreira contra automação
+e reduz-se o risco de um terceiro consumir tentativas contra a conta de um titular.
+- **Respostas coerentes:** contas inexistentes e senhas incorretas retornam `401
+Credenciais inválidas`. Uma conta já bloqueada retorna `423` com o tempo restante
+do bloqueio, permitindo que o titular saiba por que a senha correta não foi aceita.
+Como o bloqueio só é informado após localizar uma conta existente, o e-mail de
+uma conta inexistente continua sem ser revelado.
 - **Justificativa:** Evitamos o bloqueio definitivo da conta. Se o bloqueio fosse definitivo, um atacante mal-intencionado poderia travar as contas de usuários legítimos de propósito, gerando um ataque de Negação de Serviço (DoS). O bloqueio temporário atrasa bots sem prejudicar o usuário real de forma permanente. Esta abordagem segue as recomendações da norma **NIST SP 800-63B** sobre a mitigação de ataques de adivinhação de senhas on-line, que recomenda limitar o número de tentativas e aplicar atrasos temporais.
 
 ## 3. Gestão de credenciais e criptografia

@@ -14,6 +14,7 @@ from app.utils.password_reset import log_security_event
 
 # operação -> escopo -> (limite de requisições, janela em segundos)
 LIMITS = {
+    "login": {"ip": (20, 900)},
     "register": {"ip": (10, 3600)},
     "forgot_password": {"ip": (5, 900), "email": (3, 3600)},
 }

@@ -74,16 +74,23 @@ def test_get_json_payload_com_corpos_invalidos():
     """Protege rotas contra corpos de requisição vazios, primitivos ou listas."""
     # Caso 1: Payload vazio
     with app.test_request_context("/", method="POST"):
-        assert get_json_payload(request=Flask(__name__).test_request_context().request) == {}
+        assert (
+            get_json_payload(request=Flask(__name__).test_request_context().request)
+            == {}
+        )
 
     # Caso 2: Payload é lista JSON [1, 2, 3] em vez de dicionário
     with app.test_request_context("/", method="POST", json=[1, 2, 3]):
         from flask import request
+
         assert get_json_payload(request) == {}
 
     # Caso 3: Payload é dicionário válido
-    with app.test_request_context("/", method="POST", json={"email": "teste@exemplo.com"}):
+    with app.test_request_context(
+        "/", method="POST", json={"email": "teste@exemplo.com"}
+    ):
         from flask import request
+
         assert get_json_payload(request) == {"email": "teste@exemplo.com"}
 
 
@@ -110,6 +117,7 @@ def test_register_rejeita_senha_fora_dos_limites(client, password, mensagem_espe
     assert response.status_code == 400
     assert mensagem_esperada in response.get_json()["error"]
 
+
 def test_login_com_senha_acima_de_72_bytes_retorna_401_sem_erro_500():
     """Login com senha gigantesca não gera erro 500 no bcrypt, retornando 401 Credenciais inválidas."""
     mock_user = MagicMock()
@@ -123,8 +131,9 @@ def test_login_com_senha_acima_de_72_bytes_retorna_401_sem_erro_500():
         method="POST",
         json={"email": "usuario@exemplo.com", "password": "A" * 200},
     ):
-        with patch("app.routes.auth.User.query") as mock_query, \
-             patch("app.routes.auth.db.session"):
+        with patch("app.routes.auth.User.query") as mock_query, patch(
+            "app.routes.auth.db.session"
+        ), patch("app.routes.auth.is_limited", return_value=None):
 
             mock_filter = MagicMock()
             mock_filter.first.return_value = mock_user
