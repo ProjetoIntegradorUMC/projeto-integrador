@@ -29,7 +29,7 @@ auditoria. Ela não deve ser interpretada como um controle já implementado.
 | Dados cadastrais dos usuários | Nome completo, nome de usuário e e-mail. São dados pessoais usados para identificar e contatar o titular. |
 | Credenciais de acesso | Hash bcrypt das senhas e os mecanismos de autenticação. O hash não permite recuperar diretamente a senha, mas seu vazamento pode viabilizar tentativas de quebra offline. |
 | Segredo do TOTP (2FA) | Chave usada para gerar e validar os códigos do segundo fator. A confidencialidade desse segredo é essencial para que o 2FA continue protegendo a conta. |
-| Sessões autenticadas | Tokens opacos armazenados no banco e apresentados pelo navegador. Um token roubado pode permitir sequestro de sessão até expirar ou ser revogado. |
+| Sessões autenticadas | Tokens opacos apresentados pelo navegador; o banco guarda apenas o hash SHA-256 deles. Um token roubado do dispositivo ou da rede pode permitir sequestro de sessão até expirar ou ser revogado. |
 | Tokens de recuperação de senha | Tokens enviados por e-mail para redefinir a senha. São credenciais temporárias e devem ser protegidos contra leitura e reutilização. |
 | Dados acadêmicos e de monitoria | Ofertas de monitoria, disciplinas, descrições e inscrições que relacionam usuários. Podem revelar interesses e vínculos acadêmicos. |
 | Registros de auditoria | `security_logs` e `password_reset_logs`, usados para investigar autenticações e recuperações de senha. Sua integridade é necessária para rastreabilidade. |
@@ -59,7 +59,7 @@ auditoria. Ela não deve ser interpretada como um controle já implementado.
 |---|---|---:|---|---|
 | Quebra de senhas por força bruta online | Credenciais | Alto | Após cinco falhas, a conta é bloqueada por 15 minutos; o contador fica persistido no banco. | Implementada |
 | Quebra offline de hashes de senha | Credenciais, banco | Alto | Senhas são armazenadas com bcrypt, salt aleatório e fator de custo 12. | Implementada |
-| Roubo ou reutilização de sessão | Sessões, dados pessoais | Alto | Sessões são tokens opacos armazenados no servidor, expiram em 30 minutos e podem ser revogadas no logout. O cookie usa `HttpOnly` e `SameSite=Lax`. | Parcial: `Secure` está desabilitado |
+| Roubo ou reutilização de sessão | Sessões, dados pessoais | Alto | Sessões são tokens opacos, e o servidor guarda só o hash SHA-256 deles (um vazamento do banco não entrega cookies utilizáveis), expiram em 30 minutos e podem ser revogadas no logout. O cookie usa `HttpOnly` e `SameSite=Lax`. | Parcial: `Secure` está desabilitado |
 | Interceptação de credenciais e cookies em trânsito | Todos os dados enviados, sessões, tokens | Alto | Nenhuma proteção de transporte está configurada no código atual. | **Pendente: habilitar HTTPS/TLS, redirecionar ou bloquear HTTP e ativar `SESSION_COOKIE_SECURE` fora do desenvolvimento** |
 | Comprometimento do segredo TOTP após vazamento do banco | Segredo do TOTP, contas | Alto | O TOTP é validado com janela de sincronização e há registro de eventos de segurança, mas isso não protege o segredo em repouso. | **Pendente: criptografar o segredo TOTP com uma chave separada e protegida** |
 | Adivinhação ou vazamento de token de recuperação | Tokens, credenciais | Alto | Token gerado com CSPRNG, somente o hash SHA-256 é salvo, validade de 15 minutos e uso único com `used_at`. | Implementada |

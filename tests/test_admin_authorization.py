@@ -19,7 +19,8 @@ def criar_usuario(flask_app, email, is_admin=False):
         )
         db.session.add(user)
         db.session.commit()
-        return {"Cookie": f"session_id={create_session(user.id).token}"}
+        _, token = create_session(user.id)
+        return {"Cookie": f"session_id={token}"}
 
 
 def test_email_do_antigo_admin_email_nao_da_privilegio(
