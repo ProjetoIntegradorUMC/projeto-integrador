@@ -30,6 +30,12 @@ from app.utils.password_reset import (
     log_security_event,
 )
 from app.utils.email import send_email
+
+from app.utils.validators import (
+    validate_password_policy,
+    safe_check_password,
+    get_json_payload,
+)
 from app.utils.rate_limit import get_client_ip, is_limited, too_many_requests
 
 auth_bp = Blueprint("auth", __name__)
@@ -56,7 +62,7 @@ def register():
     retry_after = is_limited("register", "ip", get_client_ip())
     if retry_after:
         return too_many_requests(retry_after)
-    data = request.get_json()
+    data = get_json_payload(request)
 
     full_name = data.get("full_name")
     username = data.get("username")
@@ -64,8 +70,30 @@ def register():
     password = data.get("password")
     consent_given = data.get("consent_given")
 
-    if not username or not email or not password or not full_name or not consent_given:
+    if (
+        not full_name
+        or not username
+        or not email
+        or not password
+        or not consent_given
+        or not isinstance(full_name, str)
+        or not isinstance(username, str)
+        or not isinstance(email, str)
+        or not isinstance(password, str)
+    ):
+        return jsonify({"error": "Todos os campos são obrigatórios e devem ser válidos"}), 400
+
+    full_name = full_name.strip()
+    username = username.strip()
+    email = email.strip()
+
+    if not full_name or not username or not email:
         return jsonify({"error": "Todos os campos são obrigatórios"}), 400
+
+    # Valida política de senhas (mínimo 8 caracteres, máximo 72 bytes)
+    is_valid, error_msg = validate_password_policy(password)
+    if not is_valid:
+        return jsonify({"error": error_msg}), 400
 
     existing_user = User.query.filter(
         (User.username == username) | (User.email == email)
@@ -74,13 +102,12 @@ def register():
     if existing_user:
         return jsonify({"error": "Usuário ou e-mail já cadastrado"}), 409
 
-    # gensalt() gera um salt aleatório e criptograficamente seguro a cada
-    # chamada, garantindo que dois usuários com a mesma senha nunca produzam
-    # o mesmo hash. O salt fica embutido no resultado de hashpw(), por isso
-    # não é necessário armazená-lo em uma coluna separada no banco.
-    password_hash = bcrypt.hashpw(
-        password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
-    )
+    try:
+        password_hash = bcrypt.hashpw(
+            password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
+        )
+    except (ValueError, TypeError):
+        return jsonify({"error": "Erro ao processar a senha informada"}), 400
 
     user = User(
         full_name=full_name,
@@ -103,15 +130,17 @@ def forgot_password():
     retry_after = is_limited("forgot_password", "ip", get_client_ip())
     if retry_after:
         return too_many_requests(retry_after)
-    data = request.get_json() or {}
+    data = get_json_payload(request)
     email = data.get("email")
 
-    if not email:
+    if not email or not isinstance(email, str) or not email.strip():
         return jsonify({"error": "E-mail é obrigatório"}), 400
-        # Acima do limite, responde igual a um pedido normal e não envia nada.
-    # A contagem vale para e-mails existentes e inexistentes.
 
-    if is_limited("forgot_password", "email", str(email).strip().lower()):
+    email = email.strip()
+
+    # A contagem vale para e-mails existentes e inexistentes.
+    # Acima do limite, responde igual a um pedido normal e não envia nada.
+    if is_limited("forgot_password", "email", email.lower()):
         return (
             jsonify(
                 {
@@ -120,6 +149,7 @@ def forgot_password():
             ),
             200,
         )
+      
     # Procura o usuário pelo e-mail informado.
     user = User.query.filter_by(email=email).first()
 
@@ -231,13 +261,27 @@ def forgot_password():
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
     """Redefine a senha usando um token válido de recuperação."""
-    data = request.get_json() or {}
+    data = get_json_payload(request)
 
     token = data.get("token")
     new_password = data.get("new_password")
 
-    if not token or not new_password:
+    if (
+        not token
+        or not new_password
+        or not isinstance(token, str)
+        or not isinstance(new_password, str)
+    ):
         return jsonify({"error": "Token e nova senha são obrigatórios."}), 400
+
+    token = token.strip()
+    if not token:
+        return jsonify({"error": "Token e nova senha são obrigatórios."}), 400
+
+    # Valida política de senhas (mínimo 8 caracteres, máximo 72 bytes)
+    is_valid, error_msg = validate_password_policy(new_password)
+    if not is_valid:
+        return jsonify({"error": error_msg}), 400
 
     # Gera o hash do token recebido.
     token_hash = hash_reset_token(token)
@@ -295,10 +339,12 @@ def reset_password():
 
         return jsonify({"error": "Não foi possível redefinir a senha."}), 400
 
-    # Gera o hash bcrypt da nova senha.
-    password_hash = bcrypt.hashpw(
-        new_password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
-    ).decode("utf-8")
+    try:
+        password_hash = bcrypt.hashpw(
+            new_password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
+        ).decode("utf-8")
+    except (ValueError, TypeError):
+        return jsonify({"error": "Erro ao processar a nova senha."}), 400
 
     user.password_hash = password_hash
 
@@ -323,14 +369,20 @@ def reset_password():
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    data = get_json_payload(request)
 
     email = data.get("email")
     password = data.get("password")
 
-    if not email or not password:
+    if (
+        not email
+        or not password
+        or not isinstance(email, str)
+        or not isinstance(password, str)
+    ):
         return jsonify({"error": "email e password são obrigatórios"}), 400
 
+    email = email.strip()
     user = User.query.filter_by(email=email).first()
 
     if not user:
@@ -365,9 +417,7 @@ def login():
             423,
         )  # HTTP 423 Locked (Recurso trancado)
 
-    password_valid = bcrypt.checkpw(
-        password.encode("utf-8"), user.password_hash.encode("utf-8")
-    )
+    password_valid = safe_check_password(password, user.password_hash)
 
     if not password_valid:
         # 2. Se errou a senha, aumenta a contagem de tentativas
@@ -469,11 +519,13 @@ def login():
 @auth_bp.route("/verify-2fa", methods=["POST"])
 def verify_2fa():
     """Valida o código TOTP fornecido e completa o login."""
-    data = request.get_json()
+    data = get_json_payload(request)
     code = data.get("code")
 
-    if not code:
+    if not code or not isinstance(code, str) or not code.strip():
         return jsonify({"error": "Código TOTP é obrigatório"}), 400
+
+    code = code.strip()
 
     # Verificar se há um login pendente (2FA em andamento)
     user_id = session.get("pending_user_id")
@@ -677,21 +729,24 @@ def confirm_2fa(current_user):
 @login_required
 def disable_2fa(current_user):
     """Desativa 2FA para o usuário."""
-    data = request.get_json(silent=True) or {}
+    data = get_json_payload(request)
     password = data.get("password")
     code = data.get("code")
 
-    if not password or not code:
+    if (
+        not password
+        or not code
+        or not isinstance(password, str)
+        or not isinstance(code, str)
+    ):
         return jsonify({"error": "password e code são obrigatórios"}), 400
 
     if not current_user.two_factor_enabled:
         return jsonify({"error": "2FA não está ativo"}), 400
 
-    # Verificar senha antes de permitir desativar 2FA
-    password_valid = bcrypt.checkpw(
-        password.encode("utf-8"), current_user.password_hash.encode("utf-8")
-    )
-    code_valid = verify_totp_code(current_user.two_factor_secret, code)
+    # Verificar senha antes de permitir desativar 2FA com proteção contra erro 500
+    password_valid = safe_check_password(password, current_user.password_hash)
+    code_valid = verify_totp_code(current_user.two_factor_secret, code.strip())
 
     # Aqui não revela se foi a senha ou o código que falhou.
     if not password_valid or not code_valid:
