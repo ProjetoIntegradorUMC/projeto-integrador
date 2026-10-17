@@ -60,6 +60,26 @@ def revoke_session(session_obj):
     db.session.commit()
 
 
+def revoke_all_user_sessions(user_id, commit=True):
+    """
+    Revoga todas as sessões ativas de um usuário no banco de dados.
+    Garante o encerramento imediato de sessões preexistentes após eventos
+    críticos de segurança, como a redefinição de senha (Issue #83).
+    """
+    now = datetime.now(timezone.utc)
+    active_sessions = Session.query.filter(
+        Session.user_id == user_id,
+        Session.revoked_at.is_(None),
+    ).all()
+
+    for s in active_sessions:
+        s.revoked_at = now
+
+    if commit:
+        db.session.commit()
+    return len(active_sessions)
+
+
 def login_required(f):
     """
     Decorator para proteger rotas.

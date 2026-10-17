@@ -64,3 +64,7 @@ sequenceDiagram
 ### 3.4. Estrutura do Log de Auditoria
 - **Decisão:** O sistema de auditoria não guarda senhas e salva apenas os 16 últimos caracteres do hash do token.
 - **Justificativa:** Seguindo o princípio do privilégio mínimo e adequação à LGPD, o log serve exclusivamente para rastreabilidade (saber quem, quando e o motivo de uma falha). Não registrar o token usável impede que um atacante que ganhe acesso aos logs (ou até mesmo administradores do sistema) consiga sequestrar contas em processo de recuperação. 
+
+### 3.5. Revogação de Sessões Ativas (Issue #83)
+- **Decisão:** Revogação automática de todas as sessões ativas do usuário na mesma transação atômica da redefinição de senha.
+- **Justificativa:** Caso a redefinição de senha ocorra após suspeita de comprometimento da conta ou perda de dispositivo, qualquer sessão preexistente (mesmo que com cookie de sessão válido) é imediatamente invalidada no banco de dados (`revoked_at`), forçando todos os clientes a realizarem nova autenticação com a nova credencial. 
