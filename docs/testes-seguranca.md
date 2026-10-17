@@ -192,42 +192,6 @@ O login foi recusado com `401`, e o evento foi preservado no log para investiga�
 
 ---
 
-## 7. Tokens de sessão armazenados como hash
-
-### Objetivo
-
-Verificar se o banco de dados guarda o token de sessão em texto puro. Em caso de vazamento do banco, um token utilizável permitiria sequestrar sessões ativas.
-
-### Execução
-
-Foi feito login na aplicação e, em seguida, consultada a tabela `sessions` com o usuário administrador do banco:
-
-```sql
-SELECT id, user_id, token_hash, expires_at, revoked_at FROM sessions;
-```
-
-Além do teste manual, o arquivo `tests/test_sessions.py` cobre: token válido, inválido, expirado e revogado; o banco guardando somente o hash SHA-256 do token; o hash do banco não funcionando como cookie; o fluxo real de login e logout; e a exclusão em cascata das sessões ao excluir o usuário.
-
-### Resultado
-
-**Passou.**
-
-A tabela não tem mais a coluna `token` e guarda apenas `token_hash`, com 64 caracteres hexadecimais. Usar o hash como cookie resulta em `401`. Os testes automatizados passaram.
-
-### Evidência
-
-Registro de exemplo, de uma sessão encerrada pelo logout (`revoked_at` preenchido):
-
-```text
- id | user_id |                            token_hash                            |          expires_at           |          revoked_at
-----+---------+------------------------------------------------------------------+-------------------------------+-------------------------------
- 36 |       1 | f6aab68324d96649065ba0f71f1888c6fea228494bbcf33075d539bf30015ede | 2026-10-17 22:02:36.938046+00 | 2026-10-17 21:34:06.651173+00
-```
-
-> **Observação:** a migração de bancos existentes está em [docs/autenticacao.md](autenticacao.md), na seção **Como o token de sessão é armazenado**. As sessões antigas são invalidadas.
-
----
-
 ## Resumo dos resultados
 
 | Teste | Resultado |
@@ -238,6 +202,5 @@ Registro de exemplo, de uma sessão encerrada pelo logout (`revoked_at` preenchi
 | Alteração/exclusão dos logs | Passou |
 | SQL Injection no login | Passou |
 | XSS armazenado no painel de auditoria | Passou |
-| Token de sessão armazenado como hash | Passou |
 
 Todos os testes de segurança previstos foram executados e documentados, com evidências correspondentes aos resultados obtidos.

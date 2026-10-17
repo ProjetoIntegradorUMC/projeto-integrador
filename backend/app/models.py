@@ -130,8 +130,8 @@ class Session(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Hash SHA-256 (hex) do token. O token em si só existe no cookie do cliente.
-    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    # O cookie do navegador vai carregar só esse token opaco (gerado de forma segura).
+    token = db.Column(db.String(64), unique=True, nullable=False)
 
     # LGPD (Art. 18 - Direito à eliminação): ON DELETE CASCADE garante que se o
     # usuário pedir a exclusão da conta, suas sessões ativas serão apagadas em cascata.

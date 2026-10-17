@@ -56,6 +56,6 @@ def admin_headers(flask_app):
         )
         db.session.add(admin)
         db.session.commit()
-        _, token = create_session(admin.id)
+        token = create_session(admin.id).token
 
     return {"Cookie": f"session_id={token}"}
