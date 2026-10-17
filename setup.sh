@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${PROJECT_ROOT}/.env"
+VENV_DIR="${PROJECT_ROOT}/.venv"
+PYTHON="${VENV_DIR}/bin/python"
+
+fail() {
+    printf 'Erro: %s\n' "$*" >&2
+    exit 1
+}
+
+command -v docker >/dev/null 2>&1 || fail "Docker não encontrado."
+docker compose version >/dev/null 2>&1 || fail "Docker Compose não está disponível."
+
+[[ -f "${ENV_FILE}" ]] || fail "Arquivo .env não encontrado. Copie .env.example para .env e preencha os valores."
+
+set -a
+# shellcheck disable=SC1090
+source "${ENV_FILE}"
+set +a
+
+required_variables=(
+    DB_HOST
+    DB_PORT
+    DB_NAME
+    DB_ADMIN_USER
+    DB_ADMIN_PASSWORD
+    DB_APP_USER
+    DB_APP_PASSWORD
+    DB_APP_ROLE
+    SECRET_KEY
+    TOTP_ENCRYPTION_KEY
+)
+
+for variable in "${required_variables[@]}"; do
+    [[ -n "${!variable:-}" ]] || fail "${variable} não está configurada no .env."
+done
+
+if [[ ! -x "${PYTHON}" ]]; then
+    command -v python3 >/dev/null 2>&1 || fail "Python 3 não encontrado."
+    python3 -m venv "${VENV_DIR}"
+fi
+
+printf '%s\n' "Instalando dependências Python..."
+"${PYTHON}" -m pip install --quiet --requirement "${PROJECT_ROOT}/requirements.txt"
+
+printf '%s\n' "Subindo o PostgreSQL..."
+(
+    cd "${PROJECT_ROOT}"
+    docker compose up --detach postgres
+)
+
+printf '%s\n' "Aguardando o PostgreSQL ficar disponível..."
+for attempt in $(seq 1 30); do
+    if docker compose --project-directory "${PROJECT_ROOT}" exec --env PGPASSWORD="${DB_ADMIN_PASSWORD}" --no-TTY postgres \
+        pg_isready --username="${DB_ADMIN_USER}" --dbname="${DB_NAME}" >/dev/null 2>&1; then
+        break
+    fi
+
+    if [[ "${attempt}" -eq 30 ]]; then
+        fail "PostgreSQL não ficou disponível a tempo."
+    fi
+    sleep 2
+done
+
+printf '%s\n' "Criando ou atualizando o schema pelos models..."
+(
+    cd "${PROJECT_ROOT}"
+    PYTHONPATH=backend "${PYTHON}" backend/db/create_schema.py
+)
+
+run_admin_sql() {
+    local script="$1"
+    shift
+
+    docker compose --project-directory "${PROJECT_ROOT}" exec \
+        --env PGPASSWORD="${DB_ADMIN_PASSWORD}" \
+        --no-TTY postgres \
+        psql --set ON_ERROR_STOP=1 \
+        --username="${DB_ADMIN_USER}" \
+        --dbname="${DB_NAME}" \
+        "$@" < "${PROJECT_ROOT}/backend/db/${script}"
+}
+
+printf '%s\n' "Aplicando privilégios mínimos da role de runtime..."
+run_admin_sql app_role_setup.sql \
+    --set "app_user=${DB_APP_USER}" \
+    --set "app_password=${DB_APP_PASSWORD}" \
+    --set "app_role=${DB_APP_ROLE}"
+
+run_admin_sql log_permissions.sql \
+    --set "app_role=${DB_APP_ROLE}" \
+    --set "db_owner=${DB_ADMIN_USER}"
+
+printf '%s\n' "Validando privilégios efetivos..."
+run_admin_sql validate_permissions.sql \
+    --set "app_role=${DB_APP_ROLE}"
+
+printf '%s\n' "Ambiente configurado. Iniciando o backend em http://127.0.0.1:5000..."
+cd "${PROJECT_ROOT}"
+exec "${PYTHON}" backend/run.py

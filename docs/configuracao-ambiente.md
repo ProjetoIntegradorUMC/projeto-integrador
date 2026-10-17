@@ -78,6 +78,18 @@ usuários existentes.
 
 ## Execução e depuração
 
+### `setup.sh`
+
+Depois de preencher o `.env`, execute `bash setup.sh` na raiz do projeto para
+configurar e iniciar o ambiente local com um único comando. O script cria o
+ambiente virtual, instala `requirements.txt`, sobe o PostgreSQL, cria as
+entidades com `db.create_all()` usando os models, aplica os grants da role de
+runtime, valida os privilégios efetivos e inicia `backend/run.py`.
+
+O backend é iniciado somente após a validação dos privilégios. Para interrompê-
+lo, use `Ctrl+C`; o container do PostgreSQL pode ser parado separadamente com
+`docker compose stop postgres`.
+
 ### `FLASK_DEBUG`
 
 Controla o modo de depuração do servidor iniciado por `backend/run.py`.

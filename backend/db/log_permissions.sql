@@ -1,51 +1,35 @@
--- Proteção da trilha de auditoria
--- Uso:
---   psql -h <host> -p <porta> -U <usuario_admin> -d <database> \
---     -v app_role='<role_da_aplicacao>' \
---     -v db_owner='<usuario_admin>' \
---     -f backend/db/log_permissions.sql
+-- Protege a trilha de auditoria como append-only.
+-- Execute com um usuário administrador, depois de create_schema.py e
+-- app_role_setup.sql:
 --
--- Este script pressupõe que o role da aplicação já exista e que as tabelas
--- security_logs e password_reset_logs já tenham sido criadas.
+--   psql -h <host> -p <porta> -U <usuario_admin> -d <database> \
+--     -v app_role="$DB_APP_ROLE" \
+--     -v db_owner="$DB_ADMIN_USER" \
+--     -f backend/db/log_permissions.sql
 
 DO $$
 BEGIN
     IF to_regclass('public.security_logs') IS NULL THEN
-        RAISE EXCEPTION 'Tabela public.security_logs não encontrada. Execute a aplicação para criar o schema antes deste script.';
+        RAISE EXCEPTION 'Tabela public.security_logs não encontrada. Execute create_schema.py.';
     END IF;
 
     IF to_regclass('public.password_reset_logs') IS NULL THEN
-        RAISE EXCEPTION 'Tabela public.password_reset_logs não encontrada. Execute a aplicação para criar o schema antes deste script.';
+        RAISE EXCEPTION 'Tabela public.password_reset_logs não encontrada. Execute create_schema.py.';
     END IF;
 END $$;
 
--- O role da aplicação pode criar o schema para que db.create_all() funcione,
--- mas não pode continuar dono dos logs; o proprietário sempre mantém
--- UPDATE/DELETE independentemente de REVOKE.
+-- O dono sempre mantém UPDATE/DELETE, portanto os logs pertencem ao admin.
 ALTER TABLE public.security_logs OWNER TO :"db_owner";
 ALTER TABLE public.password_reset_logs OWNER TO :"db_owner";
 
--- A restrição abaixo afeta somente as tabelas de auditoria. As permissões
--- completas do role nas demais entidades permanecem intactas.
-REVOKE UPDATE, DELETE, TRUNCATE
+REVOKE ALL PRIVILEGES
 ON TABLE public.security_logs, public.password_reset_logs
 FROM PUBLIC;
 
--- Reforça que o role da aplicação é append-only nos logs de auditoria.
-REVOKE UPDATE, DELETE, TRUNCATE
+REVOKE ALL PRIVILEGES
 ON TABLE public.security_logs, public.password_reset_logs
 FROM :"app_role";
 
 GRANT SELECT, INSERT
 ON TABLE public.security_logs, public.password_reset_logs
 TO :"app_role";
-
--- INSERT com IDs autogerados precisa de USAGE/SELECT/UPDATE nas sequências.
--- O role mantém essa permissão para todas as entidades; a proteção
--- append-only continua restrita às tabelas de logs acima.
-GRANT USAGE, SELECT, UPDATE
-ON ALL SEQUENCES IN SCHEMA public
-TO :"app_role";
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO :"app_role";
