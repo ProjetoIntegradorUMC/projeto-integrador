@@ -512,22 +512,31 @@
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="accountDeletionConfirmationTitle">
-                                    Confirmar revogação
+                                <h5 class="modal-title text-danger" id="accountDeletionConfirmationTitle">
+                                    Confirmar exclusão definitiva
                                 </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                                     aria-label="Fechar"></button>
                             </div>
                             <div class="modal-body">
-                                A revogação do consentimento implicará na exclusão da sua conta e de
-                                todos os dados associados. Essa ação não pode ser desfeita.
+                                <div class="alert alert-danger mb-3">
+                                    <strong>Atenção:</strong> Esta ação é irreversível. Todos os seus dados pessoais, inscrições e monitorias serão permanentemente excluídos (LGPD Art. 18, VI).
+                                </div>
+                                <p class="small text-muted mb-2">
+                                    Para confirmar sua identidade e autorizar a exclusão, digite sua senha atual:
+                                </p>
+                                <div class="mb-2">
+                                    <label for="deleteAccountPassword" class="form-label small fw-semibold">Senha atual</label>
+                                    <input type="password" class="form-control" id="deleteAccountPassword" placeholder="Sua senha" autocomplete="current-password" required>
+                                </div>
+                                <div id="deleteAccountError" class="text-danger small"></div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">
                                     Cancelar
                                 </button>
                                 <button type="button" class="btn btn-danger" id="confirmAccountDeletion">
-                                    Revogar e excluir conta
+                                    Confirmar e excluir conta
                                 </button>
                             </div>
                         </div>

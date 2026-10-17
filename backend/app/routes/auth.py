@@ -12,6 +12,7 @@ from app.utils.sessions import (
     create_session,
     get_current_session,
     revoke_session,
+    revoke_all_user_sessions,
     login_required,
 )
 from app.two_factor import (
@@ -29,11 +30,13 @@ from app.utils.password_reset import (
     log_security_event,
 )
 from app.utils.email import send_email
+
 from app.utils.validators import (
     validate_password_policy,
     safe_check_password,
     get_json_payload,
 )
+from app.utils.rate_limit import get_client_ip, is_limited, too_many_requests
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -56,6 +59,9 @@ def minutos_restantes(locked_until, now):
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
+    retry_after = is_limited("register", "ip", get_client_ip())
+    if retry_after:
+        return too_many_requests(retry_after)
     data = get_json_payload(request)
 
     full_name = data.get("full_name")
@@ -121,6 +127,9 @@ def register():
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
     """Inicia o processo de recuperação de senha por e-mail."""
+    retry_after = is_limited("forgot_password", "ip", get_client_ip())
+    if retry_after:
+        return too_many_requests(retry_after)
     data = get_json_payload(request)
     email = data.get("email")
 
@@ -129,6 +138,18 @@ def forgot_password():
 
     email = email.strip()
 
+    # A contagem vale para e-mails existentes e inexistentes.
+    # Acima do limite, responde igual a um pedido normal e não envia nada.
+    if is_limited("forgot_password", "email", email.lower()):
+        return (
+            jsonify(
+                {
+                    "message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."
+                }
+            ),
+            200,
+        )
+      
     # Procura o usuário pelo e-mail informado.
     user = User.query.filter_by(email=email).first()
 
@@ -209,9 +230,14 @@ def forgot_password():
             token_hash_suffix=token_hash[-16:],
         )
 
+        # Resposta genérica: um 500 só para contas existentes revelaria quem tem conta.
         return (
-            jsonify({"error": "Não foi possível enviar o e-mail de recuperação."}),
-            500,
+            jsonify(
+                {
+                    "message": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."
+                }
+            ),
+            200,
         )
 
     # Registra a solicitação bem-sucedida no log de auditoria.
@@ -325,6 +351,9 @@ def reset_password():
     # Marca o token como utilizado.
     reset_token.used_at = now
 
+    # Revoga todas as sessões ativas existentes do usuário (Issue #83)
+    revoke_all_user_sessions(user.id, commit=False)
+
     db.session.commit()
 
     # Registra a redefinição bem-sucedida.
@@ -335,7 +364,7 @@ def reset_password():
         token_hash_suffix=token_hash[-16:],
     )
 
-    return jsonify({"message": "Senha redefinida com sucesso."}), 200
+    return jsonify({"message": "Senha redefinida com sucesso. Faça login novamente com a nova senha."}), 200
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -792,7 +821,17 @@ def get_me(current_user):
 def revoke_consent(current_user):
     """
     Revogar o consentimento implica excluir permanentemente a conta.
+    Exige confirmação da senha do titular para evitar revogação/exclusão acidental.
     """
+    data = request.get_json(silent=True) or {}
+    password = data.get("password")
+
+    if not password:
+        return jsonify({"error": "A confirmação de senha é obrigatória para revogar o consentimento."}), 400
+
+    if not bcrypt.checkpw(password.encode("utf-8"), current_user.password_hash.encode("utf-8")):
+        return jsonify({"error": "Senha incorreta."}), 401
+
     db.session.delete(current_user)
     db.session.commit()
 

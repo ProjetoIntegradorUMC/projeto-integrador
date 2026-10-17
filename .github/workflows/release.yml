@@ -5,16 +5,20 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
+# Princípio do menor privilégio: bloqueia permissões por padrão no escopo global
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Permissão mínima restrita exclusivamente ao job de criação da release
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # Fixado por SHA completo para proteção contra Supply Chain Attack (Issue #92)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Criar ZIP
         run: |

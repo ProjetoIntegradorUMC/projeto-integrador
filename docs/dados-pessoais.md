@@ -46,6 +46,17 @@ Conforme a análise do frontend atual, os fluxos principais do Mentory coletam a
 
 O campo de descrição da oferta é conteúdo operacional da monitoria, não um dado pessoal obrigatório do usuário. A caixa de aceite também não coleta um dado pessoal diretamente; ela registra os metadados de consentimento listados na tabela. A coleta de dados complementares (como foto, telefone, endereço, coordenação, avaliação e reputação) não faz parte do escopo atual e, portanto, não é necessária para a operação do Mentory nesta entrega.
 
+## Eliminação de dados e confirmação de identidade (LGPD Art. 18, VI)
+
+Para garantir que o direito à eliminação definitiva de dados e encerramento de conta seja exercido exclusivamente pelo próprio titular, o Mentory exige **confirmação prévia da senha atual** tanto na rota de exclusão de conta (`DELETE /lgpd/delete`) quanto na revogação de consentimento (`POST /auth/consent/revoke`).
+
+Essa medida atende aos padrões de segurança recomendados (OWASP ASVS V3.2) e mitiga os seguintes riscos:
+- **Exclusões acidentais** provocadas por cliques involuntários;
+- **Ataques de Cross-Site Request Forgery (CSRF)** ou requisições forçadas a partir de navegadores com sessões abertas;
+- **Sessões deixadas abertas em dispositivos compartilhados**, impedindo que terceiros com acesso transitório à interface apaguem a conta sem conhecer a credencial principal.
+
+Todas as exclusões acionam a regra `ON DELETE CASCADE` configurada nos modelos relacionais, garantindo que sessões ativas, ofertas de monitoria e inscrições vinculadas ao titular sejam completamente expurgadas de forma atômica e irreversível.
+
 ## Conclusão
 
 A coleta atual do Mentory está aderente ao princípio da minimização, pois cada dado solicitado tem finalidade clara, está associado a um fluxo relevante do sistema e não inclui campos que não são necessários para o funcionamento da plataforma.
