@@ -159,3 +159,11 @@ APP_BASE_URL=http://localhost:5000
 
 Os valores exibidos são apenas ilustrativos. Não copie senhas ou chaves de
 exemplo para um ambiente real.
+
+## Certificados e chaves privadas TLS
+
+Para desenvolvimento local com HTTPS e proteção de comunicação segura:
+- Chaves privadas (`*.key`, `key.pem`) e certificados (`*.pem`, `*.crt`, `*.csr`, diretório `certs/`) gerados localmente são **estritamente ignorados pelo Git** por meio do arquivo `.gitignore`.
+- **Nenhum arquivo de chave privada deve ser incluído em commits, branches ou artefatos de release.**
+- Em ambientes de produção, a terminação TLS/HTTPS deve ser gerenciada na camada de borda / proxy reverso (ex.: Nginx com Certbot / Let's Encrypt ou certificados emitidos por autoridade certificadora corporativa), mantendo as chaves privadas isoladas e protegidas pelo sistema operacional do servidor.
+- Auditoria de integridade do repositório: o histórico do Git foi verificado e não contém registro de publicação de chaves privadas.

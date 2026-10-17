@@ -15,3 +15,10 @@ __pycache__/
 
 # Cache do pytest
 .pytest_cache/
+
+# Certificados TLS e chaves privadas locais
+*.pem
+*.key
+*.crt
+*.csr
+certs/
