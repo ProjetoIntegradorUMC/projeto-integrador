@@ -484,7 +484,7 @@ def login():
 
     # --- INÍCIO DA NOSSA CRIAÇÃO DE SESSÃO (Quando não tem 2FA) ---
     # Cria a sessão no banco usando a ferramenta que fizemos na Etapa 2
-    session_obj = create_session(user.id)
+    session_obj, session_token = create_session(user.id)
 
     # Prepara a resposta JSON
     response = make_response(
@@ -506,7 +506,7 @@ def login():
     # Segurança (XSS): httponly=True impede que o Javascript do navegador roube o cookie.
     response.set_cookie(
         "session_id",
-        session_obj.token,
+        session_token,
         httponly=True,
         secure=current_app.config.get("SESSION_COOKIE_SECURE", False),
         samesite="Lax",
@@ -621,7 +621,7 @@ def verify_2fa():
     )
 
     # --- INÍCIO DA NOSSA CRIAÇÃO DE SESSÃO (Quando passa pelo 2FA) ---
-    session_obj = create_session(user.id)
+    session_obj, session_token = create_session(user.id)
 
     response = make_response(
         jsonify(
@@ -639,7 +639,7 @@ def verify_2fa():
 
     response.set_cookie(
         "session_id",
-        session_obj.token,
+        session_token,
         httponly=True,
         secure=current_app.config.get("SESSION_COOKIE_SECURE", False),
         samesite="Lax",

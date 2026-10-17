@@ -10,7 +10,28 @@ O sistema utiliza autenticação baseada em tokens de sessão opacos armazenados
 ### Por que usar Sessão no Banco de Dados em vez de JWT?
 Foi decidido **não utilizar JSON Web Tokens (JWT)** para a gestão da sessão final.
 - **Justificativa:** O JWT é *stateless* (sem estado). Se um token JWT for roubado, o servidor não consegue revogá-lo imediatamente, abrindo brecha para sequestro de sessão até que o token expire naturalmente.
-- **Nossa solução:** Usamos um token opaco gerado por `secrets.token_urlsafe(32)`. O token fica salvo no banco de dados (`table sessions`). Quando o usuário faz logout, nós preenchemos o campo `revoked_at` no banco, invalidando a sessão **imediatamente**.
+- **Nossa solução:** Usamos um token opaco gerado por `secrets.token_urlsafe(32)`. O navegador guarda o token no cookie, e o banco (`table sessions`) guarda apenas o hash SHA-256 dele, na coluna `token_hash`. Quando o usuário faz logout, nós preenchemos o campo `revoked_at` no banco, invalidando a sessão **imediatamente**.
+
+### Como o token de sessão é armazenado
+O cookie `session_id` carrega um token opaco de 256 bits (`secrets.token_urlsafe(32)`). O banco guarda apenas o hash SHA-256 desse token, na coluna `sessions.token_hash`. A cada requisição, o servidor calcula o hash do cookie recebido e busca esse valor.
+- **Justificativa:** Quem obtiver uma cópia do banco vê hashes que não funcionam como cookie. O token em texto puro só existe no navegador do usuário e não vai para os logs.
+- **Sem salt e sem hash lento:** o token é aleatório e longo, então não pode ser adivinhado por força bruta. Salt e bcrypt servem para senhas, que têm pouca entropia, e deixariam lenta toda requisição autenticada.
+- **O que não mudou:** expiração (30 minutos), revogação no logout e exclusão em cascata.
+
+#### Migração de bancos existentes
+As sessões existentes são invalidadas: todos os usuários precisam entrar de novo uma vez. O comando abaixo apaga as sessões, remove a coluna `token` (com os tokens em texto puro) e cria a `token_hash`. Rode antes de iniciar a aplicação com o código novo:
+
+```bash
+set -a
+source .env
+set +a
+
+docker exec -e PGPASSWORD="$DB_ADMIN_PASSWORD" projeto-integrador-postgres \
+  psql -v ON_ERROR_STOP=1 -U "$DB_ADMIN_USER" -d "$DB_NAME" \
+  -c "DELETE FROM sessions; ALTER TABLE sessions DROP COLUMN token; ALTER TABLE sessions ADD COLUMN token_hash VARCHAR(64) NOT NULL UNIQUE;"
+```
+
+Os três comandos rodam em uma transação, então ou todos são aplicados ou nenhum. Bancos novos já nascem com a coluna certa.
 
 ### Por que bloquear por tempo (Time-Lock) na Força Bruta?
 Se um usuário errar a senha 5 vezes, a conta é bloqueada por 15 minutos.
@@ -52,7 +73,7 @@ sequenceDiagram
     participant DB as Banco de Dados
 
     User->>API: POST /login (email, senha)
-    
+
     alt Conta Bloqueada?
         API-->>User: 423 Locked (Tente mais tarde)
     else Conta Livre
@@ -62,7 +83,7 @@ sequenceDiagram
             API-->>User: 401 Unauthorized
         else Senha Correta
             API->>DB: Zera failed_attempts
-            API->>DB: Cria Session (expires in 30m)
+            API->>DB: Cria Session (grava só o hash do token, expira em 30m)
             API-->>User: 200 OK + Set-Cookie (HttpOnly)
         end
     end

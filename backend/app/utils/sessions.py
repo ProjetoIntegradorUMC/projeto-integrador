@@ -1,9 +1,15 @@
 import secrets
+import hashlib
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import request, jsonify
 from app import db
 from app.models import Session, User
+
+
+def hash_session_token(token):
+    """SHA-256 do token. O token tem 256 bits aleatórios, então não precisa de salt."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def create_session(user_id):
@@ -18,11 +24,14 @@ def create_session(user_id):
     # Define a validade da sessão para 30 minutos (Proteção contra sessão esquecida)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
-    new_session = Session(token=token, user_id=user_id, expires_at=expires_at)
+    new_session = Session(
+        token_hash=hash_session_token(token), user_id=user_id, expires_at=expires_at
+    )
     db.session.add(new_session)
     db.session.commit()
 
-    return new_session
+    # O token em texto puro só é devolvido aqui, para ir ao cookie. Não é guardado.
+    return new_session, token
 
 
 def get_current_session():
@@ -40,7 +49,7 @@ def get_current_session():
     # 2. Não expirou (passou dos 30 min)
     # 3. Não foi revogada manualmente no logout
     now = datetime.now(timezone.utc)
-    session = Session.query.filter_by(token=token).first()
+    session = Session.query.filter_by(token_hash=hash_session_token(token)).first()
 
     if not session:
         return None, None
