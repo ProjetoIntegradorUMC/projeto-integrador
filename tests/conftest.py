@@ -4,13 +4,17 @@ from datetime import datetime, timezone
 import pytest
 from cryptography.fernet import Fernet
 
-# O ambiente é configurado antes de importar a aplicação. O load_dotenv() do
-# create_app() não sobrescreve variáveis já definidas, então estes valores
-# valem mesmo com um .env apontando para o banco de desenvolvimento.
+# O ambiente é configurado antes de importar a aplicação. Os testes não devem
+# depender do .env local nem apontar acidentalmente para o banco de desenvolvimento.
 TEST_DB_NAME = "projeto_integrador_test"
 os.environ["DB_NAME"] = TEST_DB_NAME
+os.environ["DB_HOST"] = "localhost"
+os.environ["DB_PORT"] = "5432"
+os.environ["DB_APP_USER"] = "mentory_app"
+os.environ["DB_APP_PASSWORD"] = "mentory_app"
 os.environ["SECRET_KEY"] = "chave-somente-para-testes"
 os.environ["TOTP_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
+os.environ["SECURE_COOKIES"] = "false"
 
 from app import create_app, db
 from app.models import User

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from app import db
 from app.models import User, PasswordResetToken
+from sqlalchemy import case, update
 from app.utils.sessions import (
     create_session,
     get_current_session,
@@ -48,6 +49,11 @@ auth_bp = Blueprint("auth", __name__)
 # dificultando ataques de força bruta sem tornar o login inviável.
 BCRYPT_ROUNDS = 12
 
+# Cinco falhas consecutivas bloqueiam a conta por 15 minutos. O limite por IP
+# da rota de login reduz o risco de uma conta ser bloqueada por terceiros.
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCK_MINUTES = 15
+
 # Proteção do 2FA: 5 falhas bloqueiam a verificação por 15 minutos.
 TWO_FACTOR_MAX_ATTEMPTS = 5
 TWO_FACTOR_LOCK_MINUTES = 15
@@ -56,6 +62,75 @@ def minutos_restantes(locked_until, now):
     """Minutos que faltam para o fim do bloqueio, arredondados para cima (mínimo 1)."""
     segundos = (locked_until - now).total_seconds()
     return max(1, math.ceil(segundos / 60))
+
+
+def _record_login_failure(user_id, now):
+    """Incrementa falhas atomicamente e aplica o bloqueio temporário."""
+    expired_lock = User.locked_until.isnot(None) & (User.locked_until <= now)
+    next_attempts = case(
+        (expired_lock, 1),
+        else_=User.failed_attempts + 1,
+    )
+    should_lock = (
+        User.locked_until.is_(None)
+        & (User.failed_attempts >= LOGIN_MAX_ATTEMPTS - 1)
+    )
+    statement = (
+        update(User)
+        .where(
+            User.id == user_id,
+            (User.locked_until.is_(None) | (User.locked_until <= now)),
+        )
+        .values(
+            failed_attempts=next_attempts,
+            locked_until=case(
+                (should_lock, now + timedelta(minutes=LOGIN_LOCK_MINUTES)),
+                else_=None,
+            ),
+        )
+        .returning(User.failed_attempts, User.locked_until)
+    )
+    row = db.session.execute(statement).first()
+    db.session.commit()
+
+    if row is None:
+        return None
+    return row[0], row[1] if isinstance(row[1], datetime) else None
+
+
+def _reset_login_failures(user_id, now):
+    """Resets login controls only if the account is not currently locked."""
+    statement = (
+        update(User)
+        .where(
+            User.id == user_id,
+            (User.locked_until.is_(None) | (User.locked_until <= now)),
+        )
+        .values(failed_attempts=0, locked_until=None)
+    )
+    updated = db.session.execute(statement).rowcount
+    db.session.commit()
+    return updated == 1
+
+
+def _invalid_login_response():
+    return jsonify({"error": "Credenciais inválidas"}), 401
+
+
+def _locked_login_response(locked_until, now):
+    remaining_minutes = minutos_restantes(locked_until, now)
+    return (
+        jsonify(
+            {
+                "error": (
+                    "Conta bloqueada por segurança. "
+                    f"Tente novamente em {remaining_minutes} minuto(s)."
+                )
+            }
+        ),
+        423,
+    )
+
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
@@ -369,6 +444,10 @@ def reset_password():
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
+    retry_after = is_limited("login", "ip", get_client_ip())
+    if retry_after:
+        return too_many_requests(retry_after)
+
     data = get_json_payload(request)
 
     email = data.get("email")
@@ -395,10 +474,8 @@ def login():
         )
         return jsonify({"error": "Credenciais inválidas"}), 401
 
-    # ---  PROTEÇÃO CONTRA FORÇA BRUTA ---
     now = datetime.now(timezone.utc)
 
-    # 1. Verifica se o usuário está bloqueado
     if user.locked_until and user.locked_until > now:
         # Instrumentação do login: falha deliberada por conta bloqueada.
         log_security_event(
@@ -407,26 +484,26 @@ def login():
             user_id=user.id,
             failure_reason="account_locked",
         )
-        minutos_restantes = (user.locked_until - now).seconds // 60
-        return (
-            jsonify(
-                {
-                    "error": f"Conta bloqueada por segurança. Tente novamente em {minutos_restantes} minutos."
-                }
-            ),
-            423,
-        )  # HTTP 423 Locked (Recurso trancado)
+        return _locked_login_response(user.locked_until, now)
 
     password_valid = safe_check_password(password, user.password_hash)
 
     if not password_valid:
-        # 2. Se errou a senha, aumenta a contagem de tentativas
-        user.failed_attempts += 1
+        failure = _record_login_failure(user.id, now)
+        if failure is None:
+            user = User.query.filter_by(id=user.id).first()
+            if user and user.locked_until and user.locked_until > now:
+                log_security_event(
+                    email=user.email,
+                    event_type="login_failure",
+                    user_id=user.id,
+                    failure_reason="account_locked",
+                )
+                return _locked_login_response(user.locked_until, now)
+            return _invalid_login_response()
 
-        # 3. Se errou 5 vezes seguidas, tranca a conta por 15 minutos
-        if user.failed_attempts >= 5:
-            user.locked_until = now + timedelta(minutes=15)
-            db.session.commit()
+        _, locked_until = failure
+        if locked_until:
             # Instrumentação do login: falha terminal que resultou em bloqueio.
             log_security_event(
                 email=user.email,
@@ -434,16 +511,8 @@ def login():
                 user_id=user.id,
                 failure_reason="too_many_failed_attempts",
             )
-            return (
-                jsonify(
-                    {
-                        "error": "Muitas tentativas falhas. Conta bloqueada por 15 minutos."
-                    }
-                ),
-                423,
-            )
+            return _locked_login_response(locked_until, now)
 
-        db.session.commit()
         # Instrumentação do login: falha em autenticação primária.
         log_security_event(
             email=user.email,
@@ -451,13 +520,18 @@ def login():
             user_id=user.id,
             failure_reason="invalid_password",
         )
-        return jsonify({"error": "Credenciais inválidas"}), 401
+        return _invalid_login_response()
 
-    # 4. Se a senha for válida, zera o contador de erros e remove qualquer bloqueio
-    user.failed_attempts = 0
-    user.locked_until = None
-    db.session.commit()
-    # --- FIM DA PROTEÇÃO ---
+    if not _reset_login_failures(user.id, now):
+        user = User.query.filter_by(id=user.id).first()
+        if user and user.locked_until and user.locked_until > now:
+            log_security_event(
+                email=user.email,
+                event_type="login_failure",
+                user_id=user.id,
+                failure_reason="account_locked",
+            )
+            return _locked_login_response(user.locked_until, now)
 
     # Instrumentação do login: grava sucesso da autenticação primária mesmo quando
     # o fluxo segue para validação do código 2FA, sem registrar a senha.
