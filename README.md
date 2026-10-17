@@ -31,6 +31,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 
 - **[Visão geral e arquitetura do sistema](docs/visao-geral.md)** — ponto de entrada da documentação técnica
 - **[Ler a Documentação Técnica de Autenticação e Sessão ](docs/autenticacao.md)**
+- **[Ler a Documentação Técnica de Criptografia e Comunicação Segura ](docs/criptografia.md)**
 - **[Ler a Documentação Técnica de Recuperação de Senha ](docs/recuperacao-senha.md)**
 - **[Ler a Análise de Riscos e Ameaças ](docs/analise-riscos.md)**
 - **[Ler a Documentação Técnica de Conformidade LGPD ](docs/lgpd.md)**
@@ -38,6 +39,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a Documentação Técnica do Painel de Auditoria ](docs/auditoria-logs.md)**
 - **[Ler a documentação das variáveis de ambiente](docs/configuracao-ambiente.md)**
 - **[Ler a Documentação de Segurança no Pipeline de CI/CD](docs/pipeline-seguranca.md)**
+- **[Ler a documentação de Rate Limiting](docs/rate-limiting.md)**
 
 ---
 
