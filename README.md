@@ -24,6 +24,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **Gestão de Sessão (Stateful)** armazenada no banco para revogação imediata (LGPD Art. 18).
 - **Proteção contra Força Bruta** (Time-Lock de 15 minutos).
 - **Autenticação de Dois Fatores (2FA)** via TOTP.
+- **Mitigação de Enumeração de Contas e Timing Attacks** (respostas genéricas uniformizadas e equalização de latência criptográfica).
 
 ---
 
