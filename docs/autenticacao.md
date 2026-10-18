@@ -60,6 +60,22 @@ Conforme estabelecido no achado **V19 da Auditoria de Segurança v2.0** e alinha
 - **Rejeição Explícita (Sem Truncamento Silencioso):** Senhas com mais de 72 bytes são rejeitadas com HTTP `400 Bad Request` no cadastro e na redefinição. O sistema **não trunca silenciosamente** a entrada, evitando que duas senhas distintas com o mesmo prefixo gerem hashes equivalentes.
 - **Tratamento de Exceções sem Erro 500:** No login e nos endpoints autenticados, payloads malformados ou senhas com tamanho excedente são tratados via `safe_check_password()`, retornando HTTP `401 Unauthorized` ou `400 Bad Request` de maneira previsível e sem expor tracebacks ou exceções `500`.
 
+### 3.2. Redução de Enumeração de Contas e Mitigação de Timing Attacks (Achado V11)
+
+Conforme identificado no achado **V11 da Auditoria de Segurança v2.0** e em conformidade com as diretrizes do **OWASP ASVS** e do **NIST SP 800-63B**, o Mentory implementa mecanismos defensivos para impedir o mapeamento e enumeração de contas válidas por atacantes:
+
+1. **Uniformização de Respostas no Login:**
+   - Para contas inexistentes e senhas incorretas, a aplicação retorna rigorosamente o mesmo código HTTP `401 Unauthorized` e o mesmo corpo JSON `{"error": "Credenciais inválidas"}`.
+   - **Mitigação de Timing Attack:** Como o `bcrypt` com custo 12 exige esforço computacional deliberado (~250ms), a ausência de cálculo em contas inexistentes permitiria a atacantes medir a latência da resposta para descobrir e-mails cadastrados. Para neutralizar essa ameaça de canal lateral, o sistema executa `safe_check_password(password, DUMMY_PASSWORD_HASH)` mesmo quando o usuário não é localizado no banco, equalizando os tempos de resposta.
+   - **Diagnóstico Interno Preservado:** A trilha de auditoria (`security_logs`) registra a razão real (`user_not_found` vs `invalid_password`), permitindo detecção de intrusão pela equipe técnica sem vazar dados a terceiros.
+
+2. **Proteção de Unicidade no Cadastro:**
+   - Em caso de conflito de duplicidade de e-mail ou nome de usuário, a resposta pública retorna HTTP `409 Conflict` com mensagem agregada genérica: `{"error": "Usuário ou e-mail já cadastrado"}`. Essa mensagem impede que um atacante descubra se um e-mail institucional específico já possui conta ativa variando nomes de usuário aleatórios.
+   - O tempo de processamento é equalizado através da execução de `_dummy_bcrypt_hash(password)`, e o evento é registrado internamente em auditoria (`registration_conflict`).
+
+3. **Consistência com a Recuperação de Senha:**
+   - O fluxo de recuperação (`/auth/forgot-password`) complementa essa arquitetura respondendo HTTP `200 OK` com mensagem indistinguível (`"Se o e-mail estiver cadastrado, você receberá um link de recuperação."`) para e-mails válidos ou inexistentes.
+
 A autenticação de dois fatores (2FA) utiliza **TOTP (Time-based One-Time Password)** como segundo fator de autenticação, seguindo o padrão estabelecido pela **RFC 6238**. O segredo TOTP é cifrado com **Fernet** antes de ser persistido no banco; a chave usada para essa cifragem é a variável `TOTP_ENCRYPTION_KEY`, separada da `SECRET_KEY` e mantida fora do código. Os segredos utilizados pelo TOTP não são registrados nos logs de auditoria em texto claro. Os eventos de sucesso e falha relacionados ao 2FA são registrados para permitir a rastreabilidade das autenticações.
 
 As variáveis `SECRET_KEY` e `TOTP_ENCRYPTION_KEY` são obrigatórias. A aplicação falha no startup quando alguma delas está ausente ou quando a chave Fernet é inválida. Uma chave Fernet pode ser gerada com `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
