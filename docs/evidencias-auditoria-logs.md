@@ -1,4 +1,4 @@
-# Evidências — Auditoria e Logs
+# Evidências: Auditoria e Logs
 
 Este documento apresenta os testes realizados para validar o registro e a
 visualização de eventos de segurança da plataforma Mentory.
