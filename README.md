@@ -40,6 +40,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a documentação das variáveis de ambiente](docs/configuracao-ambiente.md)**
 - **[Ler a Documentação de Segurança no Pipeline de CI/CD](docs/pipeline-seguranca.md)**
 - **[Ler a documentação de Rate Limiting](docs/rate-limiting.md)**
+- **[Ler o Guia de Deploy em Produção na VPS (Traefik + CD)](docs/deploy-vps.md)**
 
 ---
 

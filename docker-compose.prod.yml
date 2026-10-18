@@ -1,0 +1,51 @@
+services:
+  mentory-postgres:
+    image: postgres:16-alpine
+    container_name: mentory-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-mentory}
+      POSTGRES_USER: ${DB_ADMIN_USER}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD}
+    volumes:
+      - mentory_pgdata:/var/lib/postgresql/data
+    networks:
+      - mentory-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ADMIN_USER} -d ${DB_NAME:-mentory}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mentory-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mentory-web
+    restart: unless-stopped
+    depends_on:
+      mentory-postgres:
+        condition: service_healthy
+    env_file:
+      - .env.prod
+    networks:
+      - mentory-internal
+      - n8n-stack_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=n8n-stack_proxy"
+      - "traefik.http.routers.mentory.rule=Host(`mentory.stack-n8n.cloud`)"
+      - "traefik.http.routers.mentory.entrypoints=websecure"
+      - "traefik.http.routers.mentory.tls=true"
+      - "traefik.http.routers.mentory.tls.certresolver=myresolver"
+      - "traefik.http.services.mentory.loadbalancer.server.port=5000"
+
+volumes:
+  mentory_pgdata:
+    name: mentory_pgdata
+
+networks:
+  mentory-internal:
+    internal: true
+  n8n-stack_proxy:
+    external: true
