@@ -49,6 +49,19 @@ auth_bp = Blueprint("auth", __name__)
 # dificultando ataques de força bruta sem tornar o login inviável.
 BCRYPT_ROUNDS = 12
 
+# Hash bcrypt dummy pré-computado (rounds=12) para mitigação de timing attack
+# em tentativas de login com usuário inexistente (Auditoria v2.0 / V11).
+DUMMY_PASSWORD_HASH = "$2b$12$e8Y5tG1h.Hw3YQc2n8pDCO7k6Uv8sRzP2b9K1l3m4n5o6p7q8r9s0"
+
+
+def _dummy_bcrypt_hash(password: str) -> None:
+    """Equaliza o tempo de resposta do cadastro em colisões de unicidade."""
+    try:
+        bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))
+    except (ValueError, TypeError):
+        pass
+
+
 # Cinco falhas consecutivas bloqueiam a conta por 15 minutos. O limite por IP
 # da rota de login reduz o risco de uma conta ser bloqueada por terceiros.
 LOGIN_MAX_ATTEMPTS = 5
@@ -175,6 +188,12 @@ def register():
     ).first()
 
     if existing_user:
+        log_security_event(
+            email=email,
+            event_type="registration_conflict",
+            failure_reason="duplicate_username_or_email",
+        )
+        _dummy_bcrypt_hash(password)
         return jsonify({"error": "Usuário ou e-mail já cadastrado"}), 409
 
     try:
@@ -472,7 +491,11 @@ def login():
             event_type="login_failure",
             failure_reason="user_not_found",
         )
-        return jsonify({"error": "Credenciais inválidas"}), 401
+        # Mitigação contra Timing Attack (enumeração de contas - V11):
+        # Executa verificação com hash dummy para manter o tempo de resposta
+        # equivalente ao de uma verificação real de senha com bcrypt.
+        safe_check_password(password, DUMMY_PASSWORD_HASH)
+        return _invalid_login_response()
 
     now = datetime.now(timezone.utc)
 
