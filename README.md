@@ -82,12 +82,16 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
    bash setup.sh
    ```
    O script cria o ambiente virtual, instala as dependências, sobe o
-   PostgreSQL, cria as entidades usando os models, aplica e valida os
-   privilégios mínimos e inicia o backend. Não é necessário executar a
-   aplicação previamente nem rodar comandos SQL manualmente.
+   PostgreSQL, cria as entidades usando os models, valida os identificadores e
+   aplica os privilégios mínimos no banco, gera automaticamente os certificados
+   TLS locais (`cert.pem` e `key.pem` via `gerar_certificados.sh`) caso
+   `SECURE_COOKIES=true` esteja ativo no `.env`, e inicia o backend. Não é
+   necessário executar a aplicação previamente nem rodar comandos SQL
+   manualmente.
 
 3. **Acesse no Navegador:**
-   Abra `http://127.0.0.1:5000`
+   - Com `SECURE_COOKIES=true` (padrão recomendado no `.env.example`, com `cert.pem` e `key.pem` gerados): abra `https://127.0.0.1:5000` (aceite o aviso de certificado autoassinado no navegador).
+   - Caso opte por rodar apenas em HTTP local sem certificados TLS, defina `SECURE_COOKIES=false` no `.env`, remova `cert.pem`/`key.pem` se existirem e acesse `http://127.0.0.1:5000`.
 
 Para interromper o backend, use `Ctrl+C`. O PostgreSQL permanece no Docker e
 pode ser parado com `docker compose stop postgres`.
