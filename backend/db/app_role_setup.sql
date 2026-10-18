@@ -11,6 +11,58 @@
 -- A criação das entidades continua sendo feita por db.create_all() a partir
 -- dos models. Este script apenas provisiona a role e os grants de runtime.
 
+\set ON_ERROR_STOP on
+\set QUIET on
+
+\if :{?app_role}
+\else
+\warn 'ERRO: variável obrigatória app_role não informada (-v app_role=...).'
+SELECT 1 / 0;
+\endif
+
+\if :{?app_user}
+\else
+\warn 'ERRO: variável obrigatória app_user não informada (-v app_user=...).'
+SELECT 1 / 0;
+\endif
+
+\if :{?app_password}
+\else
+\warn 'ERRO: variável obrigatória app_password não informada (-v app_password=...).'
+SELECT 1 / 0;
+\endif
+
+SELECT
+    (:'app_role' ~ '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$') AS role_ok,
+    (:'app_user' ~ '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$') AS user_ok,
+    (:'app_role' <> :'app_user') AS distinct_ok,
+    (length(btrim(:'app_password')) > 0) AS password_ok
+\gset check_
+
+\if :check_role_ok
+\else
+\warn 'ERRO: identificador inválido em app_role. Use apenas letras, números e underscore.'
+SELECT 1 / 0;
+\endif
+
+\if :check_user_ok
+\else
+\warn 'ERRO: identificador inválido em app_user. Use apenas letras, números e underscore.'
+SELECT 1 / 0;
+\endif
+
+\if :check_distinct_ok
+\else
+\warn 'ERRO: app_role e app_user devem possuir identificadores distintos.'
+SELECT 1 / 0;
+\endif
+
+\if :check_password_ok
+\else
+\warn 'ERRO: app_password não pode ser vazia.'
+SELECT 1 / 0;
+\endif
+
 SELECT format(
     'CREATE ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS',
     :'app_role'
