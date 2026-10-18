@@ -95,6 +95,10 @@ run_admin_sql log_permissions.sql \
     --set "app_role=${DB_APP_ROLE}" \
     --set "db_owner=${DB_ADMIN_USER}"
 
+run_admin_sql log_retention_setup.sql \
+    --set "app_role=${DB_APP_ROLE}" \
+    --set "db_owner=${DB_ADMIN_USER}"
+
 printf '%s\n' "Validando privilégios efetivos..."
 run_admin_sql validate_permissions.sql \
     --set "app_role=${DB_APP_ROLE}"
