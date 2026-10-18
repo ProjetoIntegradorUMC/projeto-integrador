@@ -9,6 +9,52 @@ Nas demais tabelas, o role da aplicação recebe somente as operações usadas p
 backend. A restrição `append-only` é aplicada exclusivamente a
 `security_logs` e `password_reset_logs`.
 
+A minimização periódica dos e-mails não quebra essa garantia. A rotina
+administrativa `backend/db/anonymize_old_log_emails.sql` é executada com a
+credencial proprietária do banco, em transação, e apenas substitui e-mails
+com mais de 90 dias por pseudônimos estáveis. A role da aplicação continua
+sem `UPDATE` e `DELETE`; a saída da rotina informa quantos registros foram
+pseudonimizados por tabela.
+
+## Exceções de investigação
+
+`log_retention_exemptions` **não replica** nenhuma tabela de log. É uma tabela
+administrativa pequena que referencia um evento por meio da combinação
+`(log_table, log_id)`:
+
+| Coluna | Uso |
+| --- | --- |
+| `log_table` | `security_logs` ou `password_reset_logs` |
+| `log_id` | ID do evento na tabela indicada |
+| `reason` | Justificativa ou identificador do incidente |
+| `expires_at` | Data e hora em que a exceção termina |
+| `created_at` | Data e hora do cadastro da exceção |
+
+Ela é criada pelo `backend/db/log_retention_setup.sql`, executado
+automaticamente pelo `setup.sh` com a credencial administrativa. Como a
+referência é polimórfica, o banco valida a tabela permitida, mas a pessoa
+responsável deve conferir que o `log_id` existe na tabela indicada.
+
+Para preservar um evento durante uma investigação, um administrador executa:
+
+```sql
+INSERT INTO public.log_retention_exemptions
+    (log_table, log_id, reason, expires_at)
+VALUES
+    (
+        'security_logs',
+        123,
+        'INC-2026-001 - investigação de acesso suspeito',
+        '2026-12-31 23:59:59+00'
+    );
+```
+
+Para um evento de recuperação de senha, substitua `security_logs` por
+`password_reset_logs`. O registro fica fora do expurgo enquanto
+`expires_at > CURRENT_TIMESTAMP`; depois disso, torna-se elegível na próxima
+execução. A chave primária impede duas exceções simultâneas para o mesmo
+evento. A aplicação não pode inserir, alterar ou apagar exceções.
+
 As sequências existentes recebem `USAGE` e `SELECT`, suficientes para os IDs
 autogerados usados pelo backend. Objetos futuros não recebem grants
 automaticamente: novas entidades devem ser adicionadas ao
@@ -33,7 +79,8 @@ O `setup.sh` executa, nesta ordem:
 1. cria o ambiente virtual e instala as dependências Python;
 2. sobe o PostgreSQL e aguarda a disponibilidade do banco;
 3. executa `db.create_all()` com credenciais administrativas, usando os models;
-4. aplica `app_role_setup.sql` e `log_permissions.sql`;
+4. aplica `app_role_setup.sql`, `log_permissions.sql` e
+   `log_retention_setup.sql`;
 5. executa `validate_permissions.sql`;
 6. inicia o backend com `DB_APP_USER` e `DB_APP_PASSWORD`.
 
@@ -43,6 +90,21 @@ interrompido com `Ctrl+C`.
 
 Os scripts SQL continuam separados em `backend/db` para auditoria, manutenção
 e execução manual em ambientes que não utilizem o bootstrap local.
+
+Para executar a minimização após o ambiente estar configurado:
+
+```bash
+docker compose exec --env PGPASSWORD="$DB_ADMIN_PASSWORD" --no-TTY postgres \
+  psql --set ON_ERROR_STOP=1 -U "$DB_ADMIN_USER" -d "$DB_NAME" \
+  --set "app_role=$DB_APP_ROLE" \
+  --set "db_owner=$DB_ADMIN_USER" \
+  --set retention_days=90 \
+  < backend/db/anonymize_old_log_emails.sql
+```
+
+O comando imprime a quantidade pseudonimizada em cada tabela. A tabela
+`log_retention_exemptions` já existe após o `setup.sh`; antes da execução,
+investigações ativas devem ser registradas nela com motivo e `expires_at`.
 
 ## Validação manual esperada
 

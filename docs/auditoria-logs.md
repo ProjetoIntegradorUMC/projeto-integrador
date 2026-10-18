@@ -15,6 +15,9 @@ Registra tentativas de acesso e validação de fatores de autenticação:
 Para garantir privacidade e segurança:
 * Senhas e segredos (secrets do TOTP) **nunca** são registrados em texto claro.
 * O e-mail utilizado na tentativa é registrado para permitir a investigação mesmo se a conta do usuário for posteriormente excluída.
+* O e-mail em cada evento é dado pessoal temporário: após **90 dias**, ele é
+  substituído por um pseudônimo estável (`redacted+<hash>@example.invalid`).
+  O evento, seu tipo, motivo e data são preservados para análise de segurança.
 
 ### 1.2 Logs de Recuperação de Senha (`password_reset_logs`)
 Registra o ciclo de vida dos tokens de recuperação:
@@ -29,12 +32,30 @@ As permissões do usuário do banco utilizado pela aplicação (`DB_APP_USER`) f
 * `GRANT INSERT, SELECT`: A aplicação pode inserir novos logs e consultar o histórico para análise.
 * `REVOKE UPDATE, DELETE`: A aplicação tem **permissão negada** pelo PostgreSQL caso tente alterar ou apagar qualquer log existente. Nenhuma rota ou injeção de SQL será capaz de burlar esta restrição no nível da aplicação.
 
+### 2.1 Retenção e exceções de investigação
+
+A finalidade dos logs é detectar força bruta, investigar incidentes e comprovar
+eventos de autenticação e recuperação de senha. A retenção do e-mail em claro é
+limitada a 90 dias, prazo suficiente para a investigação operacional ordinária.
+Depois desse prazo, a rotina administrativa
+`backend/db/anonymize_old_log_emails.sql` pseudonimiza o e-mail sem apagar ou
+alterar os demais campos do evento.
+
+Uma investigação ativa pode criar uma exceção em
+`log_retention_exemptions`, sempre com referência ao par `(log_table, log_id)`,
+justificativa e data de expiração. Essa tabela administrativa é provisionada
+por `backend/db/log_retention_setup.sql`, com a credencial do banco, e não
+recebe permissões da role da aplicação. Exceções são temporárias e devem ser
+removidas ou expiradas ao encerrar o incidente; não existe retenção indefinida
+por padrão. O uso detalhado e o comando de inclusão estão documentados em
+`docs/logs-imutaveis.md`.
+
 ## 3. Painel de Análise
 Uma interface de análise foi disponibilizada para consolidar as métricas de segurança, visível apenas para contas com acesso administrativo, concedido exclusivamente pelo comando `provision-admin` (veja a seção 4).
 
 O painel exibe:
 1. Agregadores de incidentes críticos: Totais de sucessos e falhas de login, falhas de 2FA e requisições de senha.
-2. Trilha em tempo real: Lista unificada dos 20 eventos mais recentes do sistema (Data, E-mail envolvido, Tipo de Evento e Detalhes da Falha).
+2. Trilha em tempo real: Lista unificada dos 20 eventos mais recentes do sistema (Data, E-mail envolvido, Tipo de Evento e Detalhes da Falha). Eventos antigos exibem o pseudônimo, conforme a política de retenção.
 
 *(Insira aqui o Print da tela do Painel de Auditoria funcionando com dados reais)*
 
