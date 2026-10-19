@@ -15,6 +15,21 @@ jobs:
     permissions:
       contents: read
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: projeto_integrador_test
+          POSTGRES_USER: mentory_app
+          POSTGRES_PASSWORD: mentory_app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mentory_app -d projeto_integrador_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout do repositório
         # Fixado por SHA completo para proteção contra Supply Chain Attack
