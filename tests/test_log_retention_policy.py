@@ -36,11 +36,13 @@ def test_rotina_respeita_excecoes_de_investigacao_e_role_append_only():
 def test_tabela_de_excecoes_e_provisionada_separadamente():
     content = SETUP_SCRIPT.read_text(encoding="utf-8")
     anonymize_content = SCRIPT.read_text(encoding="utf-8")
+    setup_sh_content = Path(SCRIPT.parents[2] / "setup.sh").read_text(encoding="utf-8")
+    provision_sh_content = Path(SCRIPT.parents[0] / "provision.sh").read_text(encoding="utf-8")
 
     assert "CREATE TABLE IF NOT EXISTS public.log_retention_exemptions" in content
     assert "ALTER TABLE public.log_retention_exemptions OWNER TO :" in content
     assert 'REVOKE ALL PRIVILEGES ON TABLE public.log_retention_exemptions FROM :"app_role";' in content
     assert "CREATE TABLE IF NOT EXISTS public.log_retention_exemptions" not in anonymize_content
-    assert "log_retention_setup.sql" in Path(
-        SCRIPT.parents[2] / "setup.sh"
-    ).read_text(encoding="utf-8")
+    assert "backend/db/provision.sh" in setup_sh_content
+    assert "log_retention_setup.sql" in provision_sh_content
+
