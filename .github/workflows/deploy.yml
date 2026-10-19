@@ -1,0 +1,68 @@
+name: Deploy Produção VPS
+
+on:
+  push:
+    branches:
+      - main
+
+# Princípio do menor privilégio: bloqueia permissões por padrão no escopo global (Issue #92)
+permissions: {}
+
+jobs:
+  test:
+    name: Executar Testes Automatizados
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout do repositório
+        # Fixado por SHA completo para proteção contra Supply Chain Attack
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Configurar Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Executar suíte de testes
+        run: |
+          pytest -v
+
+  deploy:
+    name: Deploy na VPS Hostinger
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Deploy via SSH na VPS
+        uses: appleboy/ssh-action@7eaf76671a0eb5032439f4786652366f5203a2c2 # v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            DEPLOY_DIR="/root/projeto-integrador"
+            echo "==> Iniciando atualização do Mentory na VPS..."
+            if [ ! -d "$DEPLOY_DIR" ]; then
+              echo "==> Clonando repositório inicial..."
+              git clone https://github.com/ProjetoIntegradorUMC/projeto-integrador.git "$DEPLOY_DIR"
+            fi
+            cd "$DEPLOY_DIR"
+            echo "==> Atualizando branch main..."
+            git fetch origin main
+            git reset --hard origin/main
+            echo "==> Subindo containers no Docker Compose de Produção..."
+            docker compose -f docker-compose.prod.yml up -d --build
+            echo "==> Deploy concluído com sucesso!"

@@ -83,42 +83,10 @@ for attempt in $(seq 1 30); do
     sleep 2
 done
 
-printf '%s\n' "Criando ou atualizando o schema pelos models..."
-(
-    cd "${PROJECT_ROOT}"
-    PYTHONPATH=backend "${PYTHON}" backend/db/create_schema.py
-)
-
-run_admin_sql() {
-    local script="$1"
-    shift
-
-    docker compose --project-directory "${PROJECT_ROOT}" exec \
-        --env PGPASSWORD="${DB_ADMIN_PASSWORD}" \
-        --no-TTY postgres \
-        psql --quiet --set ON_ERROR_STOP=1 \
-        --username="${DB_ADMIN_USER}" \
-        --dbname="${DB_NAME}" \
-        "$@" < "${PROJECT_ROOT}/backend/db/${script}"
-}
-
-printf '%s\n' "Aplicando privilégios mínimos da role de runtime..."
-run_admin_sql app_role_setup.sql \
-    --set "app_user=${DB_APP_USER}" \
-    --set "app_password=${DB_APP_PASSWORD}" \
-    --set "app_role=${DB_APP_ROLE}"
-
-run_admin_sql log_permissions.sql \
-    --set "app_role=${DB_APP_ROLE}" \
-    --set "db_owner=${DB_ADMIN_USER}"
-
-run_admin_sql log_retention_setup.sql \
-    --set "app_role=${DB_APP_ROLE}" \
-    --set "db_owner=${DB_ADMIN_USER}"
-
-printf '%s\n' "Validando privilégios efetivos..."
-run_admin_sql validate_permissions.sql \
-    --set "app_role=${DB_APP_ROLE}"
+printf '%s\n' "Provisionando schema e privilégios mínimos do banco..."
+PSQL_EXEC_CMD="docker compose --project-directory ${PROJECT_ROOT} exec --env PGPASSWORD=${DB_ADMIN_PASSWORD} --no-TTY postgres psql --quiet --set ON_ERROR_STOP=1 --username=${DB_ADMIN_USER} --dbname=${DB_NAME}" \
+PYTHON="${PYTHON}" \
+bash "${PROJECT_ROOT}/backend/db/provision.sh"
 
 cd "${PROJECT_ROOT}"
 if [[ "${SECURE_COOKIES:-true}" =~ ^(1|true|yes|on)$ ]]; then
