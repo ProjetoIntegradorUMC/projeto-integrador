@@ -94,6 +94,11 @@ def test_github_actions_deploy_workflow():
     shas = re.findall(r"@([0-9a-f]{40})", content)
     assert len(shas) >= 3
 
+    # Serviço PostgreSQL para execução da suíte completa de testes no CI
+    assert "services:" in content
+    assert "postgres:16" in content
+    assert "POSTGRES_DB: projeto_integrador_test" in content
+
     # Executa testes antes do deploy
     assert "pytest -v" in content
 
