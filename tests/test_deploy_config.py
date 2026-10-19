@@ -37,12 +37,23 @@ def test_docker_entrypoint_valida_variaveis_e_executa_gunicorn():
         assert var in content
 
     assert "pg_isready" in content
+    assert "backend/db/provision.sh" in content
+    assert "gunicorn" in content
+    assert "0.0.0.0:5000" in content
+
+
+def test_provision_sh_unifica_execucao_de_scripts_sql_sem_duplicacao():
+    provision_sh = PROJECT_ROOT / "backend" / "db" / "provision.sh"
+    assert provision_sh.exists()
+    content = provision_sh.read_text(encoding="utf-8")
+
     assert "create_schema.py" in content
     assert "app_role_setup.sql" in content
     assert "log_permissions.sql" in content
+    assert "log_retention_setup.sql" in content
     assert "validate_permissions.sql" in content
-    assert "gunicorn" in content
-    assert "0.0.0.0:5000" in content
+    assert "psql --quiet --set ON_ERROR_STOP=1" in content
+
 
 
 def test_docker_compose_prod_traefik_e_isolamento_banco():

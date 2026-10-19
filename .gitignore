@@ -23,3 +23,7 @@ __pycache__/
 *.crt
 *.csr
 certs/
+
+# Scripts locais legados descontinuados (não versionados)
+setup_db.py
+desbloquear_usuario.py

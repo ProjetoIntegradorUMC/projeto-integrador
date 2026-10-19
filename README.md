@@ -24,12 +24,13 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **Gestão de Sessão (Stateful)** armazenada no banco para revogação imediata (LGPD Art. 18).
 - **Proteção contra Força Bruta** (Time-Lock de 15 minutos).
 - **Autenticação de Dois Fatores (2FA)** via TOTP.
+- **Mitigação de Enumeração de Contas e Timing Attacks** (respostas genéricas uniformizadas e equalização de latência criptográfica).
 
 ---
 
 ##  Documentação
 
-- **[Visão geral e arquitetura do sistema](docs/visao-geral.md)** — ponto de entrada da documentação técnica
+- **[Visão geral e arquitetura do sistema](docs/visao-geral.md)**: ponto de entrada da documentação técnica
 - **[Ler a Documentação Técnica de Autenticação e Sessão ](docs/autenticacao.md)**
 - **[Ler a Documentação Técnica de Criptografia e Comunicação Segura ](docs/criptografia.md)**
 - **[Ler a Documentação Técnica de Recuperação de Senha ](docs/recuperacao-senha.md)**
@@ -40,6 +41,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a documentação das variáveis de ambiente](docs/configuracao-ambiente.md)**
 - **[Ler a Documentação de Segurança no Pipeline de CI/CD](docs/pipeline-seguranca.md)**
 - **[Ler a documentação de Rate Limiting](docs/rate-limiting.md)**
+- **[Validação dos requisitos do checklist](docs/validacao-requisitos.md)**: mapeamento completo dos itens às evidências do repositório
 - **[Ler o Guia de Deploy em Produção na VPS (Traefik + CD)](docs/deploy-vps.md)**
 
 ---
@@ -83,12 +85,16 @@ O projeto utiliza o Docker para orquestrar o banco de dados de forma simplificad
    bash setup.sh
    ```
    O script cria o ambiente virtual, instala as dependências, sobe o
-   PostgreSQL, cria as entidades usando os models, aplica e valida os
-   privilégios mínimos e inicia o backend. Não é necessário executar a
-   aplicação previamente nem rodar comandos SQL manualmente.
+   PostgreSQL, cria as entidades usando os models, valida os identificadores e
+   aplica os privilégios mínimos no banco, gera automaticamente os certificados
+   TLS locais (`cert.pem` e `key.pem` via `gerar_certificados.sh`) caso
+   `SECURE_COOKIES=true` esteja ativo no `.env`, e inicia o backend. Não é
+   necessário executar a aplicação previamente nem rodar comandos SQL
+   manualmente.
 
 3. **Acesse no Navegador:**
-   Abra `http://127.0.0.1:5000`
+   - Com `SECURE_COOKIES=true` (padrão recomendado no `.env.example`, com `cert.pem` e `key.pem` gerados): abra `https://127.0.0.1:5000` (aceite o aviso de certificado autoassinado no navegador).
+   - Caso opte por rodar apenas em HTTP local sem certificados TLS, defina `SECURE_COOKIES=false` no `.env`, remova `cert.pem`/`key.pem` se existirem e acesse `http://127.0.0.1:5000`.
 
 Para interromper o backend, use `Ctrl+C`. O PostgreSQL permanece no Docker e
 pode ser parado com `docker compose stop postgres`.
