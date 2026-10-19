@@ -84,6 +84,8 @@ for attempt in $(seq 1 30); do
 done
 
 printf '%s\n' "Provisionando schema e privilégios mínimos do banco..."
+# Executa o script unificado de provisionamento (create_schema.py, app_role_setup.sql,
+# log_permissions.sql, log_retention_setup.sql e validate_permissions.sql)
 PSQL_EXEC_CMD="docker compose --project-directory ${PROJECT_ROOT} exec --env PGPASSWORD=${DB_ADMIN_PASSWORD} --no-TTY postgres psql --quiet --set ON_ERROR_STOP=1 --username=${DB_ADMIN_USER} --dbname=${DB_NAME}" \
 PYTHON="${PYTHON}" \
 bash "${PROJECT_ROOT}/backend/db/provision.sh"
