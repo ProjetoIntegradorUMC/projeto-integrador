@@ -24,12 +24,13 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **Gestão de Sessão (Stateful)** armazenada no banco para revogação imediata (LGPD Art. 18).
 - **Proteção contra Força Bruta** (Time-Lock de 15 minutos).
 - **Autenticação de Dois Fatores (2FA)** via TOTP.
+- **Mitigação de Enumeração de Contas e Timing Attacks** (respostas genéricas uniformizadas e equalização de latência criptográfica).
 
 ---
 
 ##  Documentação
 
-- **[Visão geral e arquitetura do sistema](docs/visao-geral.md)** — ponto de entrada da documentação técnica
+- **[Visão geral e arquitetura do sistema](docs/visao-geral.md)**: ponto de entrada da documentação técnica
 - **[Ler a Documentação Técnica de Autenticação e Sessão ](docs/autenticacao.md)**
 - **[Ler a Documentação Técnica de Criptografia e Comunicação Segura ](docs/criptografia.md)**
 - **[Ler a Documentação Técnica de Recuperação de Senha ](docs/recuperacao-senha.md)**
@@ -40,6 +41,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a documentação das variáveis de ambiente](docs/configuracao-ambiente.md)**
 - **[Ler a Documentação de Segurança no Pipeline de CI/CD](docs/pipeline-seguranca.md)**
 - **[Ler a documentação de Rate Limiting](docs/rate-limiting.md)**
+- **[Validação dos requisitos do checklist](docs/validacao-requisitos.md)**: mapeamento completo dos itens às evidências do repositório
 
 ---
 

@@ -14,7 +14,7 @@ Este documento registra os dados pessoais coletados pelo Mentory, a finalidade d
 | Senha (armazenada como hash + salt) | Cadastro | Autenticar o usuário no login | Nunca fica em texto puro; só o hash irreversível é salvo |
 | Segredo do 2FA (TOTP) | Ativação do 2FA no perfil | Gerar/validar o segundo fator no login | Só existe para quem ativa o 2FA por opção própria |
 | Token de recuperação de senha | Solicitação de "Esqueci minha senha" | Permitir redefinir a senha com segurança | Temporário, expira em minutos e é invalidado após o uso |
-| Registros de tentativas de login e de recuperação | Login e recuperação de senha | Detectar força bruta e auditar o processo | Exigência de segurança já prevista nas entregas do projeto |
+| Registros de tentativas de login e de recuperação | Login e recuperação de senha | Detectar força bruta e auditar o processo | Exigência de segurança já prevista nas entregas do projeto; e-mail em claro por 90 dias, depois pseudonimizado |
 | Data/hora e versão do consentimento | Cadastro (aceite dos termos) | Comprovar que o titular consentiu, e com qual versão dos termos | Exigência direta desta entrega |
 | Disciplina oferecida ou buscada | Oferta de monitoria / inscrição | Conectar quem oferece ajuda numa disciplina com quem precisa dela | É a funcionalidade central do Mentory; sem esse dado o sistema de monitoria não existe |
 | Registro do relacionamento (quem se inscreveu em qual monitoria de quem) | Inscrição em uma monitoria | Formalizar a conexão entre monitor e mentorado para que ambos acompanhem a monitoria | Necessário para o funcionamento básico da monitoria; ambas as partes precisam saber que estão conectadas |
@@ -60,3 +60,19 @@ Todas as exclusões acionam a regra `ON DELETE CASCADE` configurada nos modelos 
 ## Conclusão
 
 A coleta atual do Mentory está aderente ao princípio da minimização, pois cada dado solicitado tem finalidade clara, está associado a um fluxo relevante do sistema e não inclui campos que não são necessários para o funcionamento da plataforma.
+
+## Retenção e minimização de e-mails em logs
+
+Os logs `security_logs` e `password_reset_logs` mantêm o e-mail em claro por
+90 dias para investigação de incidentes de autenticação e recuperação de senha.
+Após esse prazo, a rotina administrativa
+`backend/db/anonymize_old_log_emails.sql` substitui o e-mail por um pseudônimo
+estável e preserva apenas os metadados necessários (tipo, motivo, data e
+eventual vínculo técnico). O registro do evento não é apagado.
+
+Investigações ativas podem receber uma exceção temporária em
+`log_retention_exemptions`, identificando a tabela e o `id` do evento, com
+justificativa e expiração. Essa tabela de controle não é uma cópia dos logs:
+ela guarda somente a referência ao evento e os metadados da exceção. A inclusão
+é feita por administrador do banco, conforme o procedimento documentado em
+`docs/logs-imutaveis.md`, e não altera a política padrão de 90 dias.
