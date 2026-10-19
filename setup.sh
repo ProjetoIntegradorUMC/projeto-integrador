@@ -39,6 +39,23 @@ for variable in "${required_variables[@]}"; do
     [[ -n "${!variable:-}" ]] || fail "${variable} não está configurada no .env."
 done
 
+validate_identifier() {
+    local name="$1"
+    local value="$2"
+    if [[ ! "${value}" =~ ^[a-zA-Z_][a-zA-Z0-9_]{0,62}$ ]]; then
+        fail "${name} contém um identificador SQL inválido ('${value}'). Use apenas letras, números e underscore (máx. 63 caracteres)."
+    fi
+}
+
+validate_identifier "DB_NAME" "${DB_NAME}"
+validate_identifier "DB_ADMIN_USER" "${DB_ADMIN_USER}"
+validate_identifier "DB_APP_USER" "${DB_APP_USER}"
+validate_identifier "DB_APP_ROLE" "${DB_APP_ROLE}"
+
+[[ "${DB_APP_USER}" != "${DB_APP_ROLE}" ]] || fail "DB_APP_USER e DB_APP_ROLE devem ter nomes distintos."
+[[ "${DB_APP_USER}" != "${DB_ADMIN_USER}" ]] || fail "DB_APP_USER e DB_ADMIN_USER devem ter nomes distintos."
+[[ "${DB_APP_ROLE}" != "${DB_ADMIN_USER}" ]] || fail "DB_APP_ROLE e DB_ADMIN_USER devem ter nomes distintos."
+
 if [[ ! -x "${PYTHON}" ]]; then
     command -v python3 >/dev/null 2>&1 || fail "Python 3 não encontrado."
     python3 -m venv "${VENV_DIR}"
@@ -79,7 +96,7 @@ run_admin_sql() {
     docker compose --project-directory "${PROJECT_ROOT}" exec \
         --env PGPASSWORD="${DB_ADMIN_PASSWORD}" \
         --no-TTY postgres \
-        psql --set ON_ERROR_STOP=1 \
+        psql --quiet --set ON_ERROR_STOP=1 \
         --username="${DB_ADMIN_USER}" \
         --dbname="${DB_NAME}" \
         "$@" < "${PROJECT_ROOT}/backend/db/${script}"
@@ -103,6 +120,17 @@ printf '%s\n' "Validando privilégios efetivos..."
 run_admin_sql validate_permissions.sql \
     --set "app_role=${DB_APP_ROLE}"
 
-printf '%s\n' "Ambiente configurado. Iniciando o backend em http://127.0.0.1:5000..."
 cd "${PROJECT_ROOT}"
+if [[ "${SECURE_COOKIES:-true}" =~ ^(1|true|yes|on)$ ]]; then
+    if [[ ! -f "${PROJECT_ROOT}/cert.pem" || ! -f "${PROJECT_ROOT}/key.pem" ]]; then
+        printf '%s\n' "SECURE_COOKIES está ativo e certificados TLS locais não foram encontrados. Gerando cert.pem e key.pem..."
+        bash "${PROJECT_ROOT}/gerar_certificados.sh"
+    fi
+fi
+
+if [[ -f "${PROJECT_ROOT}/cert.pem" && -f "${PROJECT_ROOT}/key.pem" ]]; then
+    printf '%s\n' "Ambiente configurado. Iniciando o backend em https://127.0.0.1:5000..."
+else
+    printf '%s\n' "Ambiente configurado. Iniciando o backend em http://127.0.0.1:5000..."
+fi
 exec "${PYTHON}" backend/run.py
