@@ -1,0 +1,90 @@
+name: DevSecOps Avançado
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dast-zap:
+    name: Varredura DAST com OWASP ZAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: mentory
+          POSTGRES_USER: mentory_admin
+          POSTGRES_PASSWORD: mentory_admin_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mentory_admin -d mentory"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Construir imagem da aplicação
+        run: docker build --tag mentory-dast:ci .
+
+      - name: Iniciar aplicação para o DAST
+        run: |
+          docker run --detach \
+            --name mentory-dast \
+            --network host \
+            --env DB_HOST=127.0.0.1 \
+            --env DB_PORT=5432 \
+            --env DB_NAME=mentory \
+            --env DB_ADMIN_USER=mentory_admin \
+            --env DB_ADMIN_PASSWORD=mentory_admin_ci \
+            --env DB_APP_USER=mentory_app \
+            --env DB_APP_PASSWORD=mentory_app_ci \
+            --env DB_APP_ROLE=mentory_app_role \
+            --env SECRET_KEY=dast-ci-secret-key \
+            --env TOTP_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+            --env FLASK_DEBUG=false \
+            --env SECURE_COOKIES=false \
+            mentory-dast:ci
+
+      - name: Aguardar aplicação ficar saudável
+        run: |
+          curl --fail --retry 10 --retry-delay 3 --retry-connrefused \
+            http://127.0.0.1:5000/
+
+      - name: Executar varredura completa do OWASP ZAP
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          # target define a URL local que será explorada pelo ZAP.
+          target: http://127.0.0.1:5000
+          # cmd_options -a inclui a análise de aplicações AJAX na varredura.
+          cmd_options: "-a"
+          # fail_action bloqueia o job quando o ZAP encontra alertas.
+          fail_action: true
+          # Impede que o scan crie ou atualize issues automaticamente.
+          allow_issue_writing: false
+          # Nome do artefato gerado pela própria Action com os relatórios do ZAP.
+          artifact_name: zap-dast-report
+
+      - name: Publicar relatório HTML do ZAP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-dast-report-html
+          path: "**/*report*.html"
+          if-no-files-found: warn
+
+      - name: Exibir logs e remover container da aplicação
+        if: always()
+        run: |
+          docker logs mentory-dast || true
+          docker rm --force mentory-dast || true
