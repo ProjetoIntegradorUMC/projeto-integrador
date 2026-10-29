@@ -66,22 +66,15 @@ jobs:
         with:
           # target define a URL local que será explorada pelo ZAP.
           target: http://127.0.0.1:5000
+          # rules_file_name ignora apenas alertas esperados no ambiente local de CI.
+          rules_file_name: .zap/rules.tsv
           # cmd_options -a inclui a análise de aplicações AJAX na varredura.
           cmd_options: "-a"
           # fail_action bloqueia o job quando o ZAP encontra alertas.
           fail_action: true
           # Impede que o scan crie ou atualize issues automaticamente.
           allow_issue_writing: false
-          # Nome do artefato gerado pela própria Action com os relatórios do ZAP.
-          artifact_name: zap-dast-report
-
-      - name: Publicar relatório HTML do ZAP
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-dast-report-html
-          path: "**/*report*.html"
-          if-no-files-found: warn
+          # A Action publica o relatório HTML no artefato padrão "zap_scan".
 
       - name: Exibir logs e remover container da aplicação
         if: always()
