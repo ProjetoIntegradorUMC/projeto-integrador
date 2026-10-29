@@ -737,7 +737,7 @@ async function generateTwoFactorQR() {
 
         // Exibir QR code
         const qrContainer = document.getElementById("qrCodeContainer");
-        qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code" style="max-width: 200px;">`;
+        qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code" class="qr-code-image">`;
 
         // Exibir chave manual
         const keyContainer = document.getElementById("manualKeyContainer");

@@ -62,19 +62,41 @@ jobs:
             http://127.0.0.1:5000/
 
       - name: Executar varredura completa do OWASP ZAP
-        uses: zaproxy/action-full-scan@v0.10.0
+        id: zap-scan
+        continue-on-error: true
+        run: |
+          set +e
+          docker run --rm \
+            --network host \
+            --volume "${GITHUB_WORKSPACE}:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-full-scan.py \
+            -t http://127.0.0.1:5000 \
+            -J zap-report.json \
+            -w zap-report.md \
+            -r zap-report.html \
+            -c .zap/rules.tsv \
+            -a
+          status=$?
+          echo "exit-code=${status}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Publicar relatório do ZAP
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          # target define a URL local que será explorada pelo ZAP.
-          target: http://127.0.0.1:5000
-          # rules_file_name ignora apenas alertas esperados no ambiente local de CI.
-          rules_file_name: .zap/rules.tsv
-          # cmd_options -a inclui a análise de aplicações AJAX na varredura.
-          cmd_options: "-a"
-          # fail_action bloqueia o job quando o ZAP encontra alertas.
-          fail_action: true
-          # Impede que o scan crie ou atualize issues automaticamente.
-          allow_issue_writing: false
-          # A Action publica o relatório HTML no artefato padrão "zap_scan".
+          name: zap-dast-report
+          path: |
+            zap-report.html
+            zap-report.json
+            zap-report.md
+          if-no-files-found: error
+
+      - name: Bloquear pipeline quando o ZAP encontrar alertas
+        if: steps.zap-scan.outputs.exit-code != '0'
+        run: |
+          echo "O OWASP ZAP encontrou alertas ou falhou (exit code ${{ steps.zap-scan.outputs.exit-code }})." >&2
+          exit 1
 
       - name: Exibir logs e remover container da aplicação
         if: always()

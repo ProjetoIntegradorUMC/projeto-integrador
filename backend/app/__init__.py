@@ -112,7 +112,7 @@ def create_app():
             "form-action 'self'; "
             "object-src 'none'; "
             "script-src 'self' https://cdn.jsdelivr.net; "
-            "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+            "style-src 'self' https://cdn.jsdelivr.net; "
             "img-src 'self' data:; "
             "connect-src 'self'; "
             "frame-ancestors 'none'"
@@ -121,6 +121,7 @@ def create_app():
             "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
         )
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
         if request.is_secure or os.getenv("SECURE_COOKIES", "false").lower() == "true":
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
