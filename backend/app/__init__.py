@@ -108,12 +108,21 @@ def create_app():
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "object-src 'none'; "
             "script-src 'self' https://cdn.jsdelivr.net; "
-            "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+            "style-src 'self' https://cdn.jsdelivr.net; "
             "img-src 'self' data:; "
             "connect-src 'self'; "
             "frame-ancestors 'none'"
         )
+        response.headers["Permissions-Policy"] = (
+            "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+        )
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         if request.is_secure or os.getenv("SECURE_COOKIES", "false").lower() == "true":
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
