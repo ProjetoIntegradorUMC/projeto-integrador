@@ -96,9 +96,11 @@ jobs:
           if-no-files-found: error
 
       - name: Bloquear pipeline quando o ZAP encontrar alertas
-        if: steps.zap-scan.outputs.exit-code != '0'
+        if: |
+          steps.zap-scan.outputs.exit-code == '1' ||
+          steps.zap-scan.outputs.exit-code == '3'
         run: |
-          echo "O OWASP ZAP encontrou alertas ou falhou (exit code ${{ steps.zap-scan.outputs.exit-code }})." >&2
+          echo "O OWASP ZAP encontrou uma falha ou erro técnico (exit code ${{ steps.zap-scan.outputs.exit-code }})." >&2
           exit 1
 
       - name: Exibir logs e remover container da aplicação

@@ -35,6 +35,7 @@ def test_cabecalhos_de_seguranca_no_frontend(client):
     )
     assert response.headers.get("Cross-Origin-Resource-Policy") == "same-origin"
     assert response.headers.get("Cross-Origin-Embedder-Policy") == "credentialless"
+    assert response.headers.get("Cross-Origin-Opener-Policy") == "same-origin"
 
 
 def test_cabecalhos_de_seguranca_nas_rotas_de_api(client):
@@ -46,6 +47,7 @@ def test_cabecalhos_de_seguranca_nas_rotas_de_api(client):
     assert "Permissions-Policy" in response.headers
     assert "Cross-Origin-Resource-Policy" in response.headers
     assert "Cross-Origin-Embedder-Policy" in response.headers
+    assert "Cross-Origin-Opener-Policy" in response.headers
 
 
 def test_hsts_quando_em_conexao_segura(flask_app, client):

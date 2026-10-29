@@ -122,6 +122,7 @@ def create_app():
         )
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         if request.is_secure or os.getenv("SECURE_COOKIES", "false").lower() == "true":
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
