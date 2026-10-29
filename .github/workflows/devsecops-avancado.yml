@@ -66,6 +66,9 @@ jobs:
         continue-on-error: true
         run: |
           set +e
+          # A imagem do ZAP executa como usuário não-root e precisa escrever no volume.
+          touch zap-report.html zap-report.json zap-report.md
+          chmod a+rw zap-report.html zap-report.json zap-report.md
           docker run --rm \
             --network host \
             --volume "${GITHUB_WORKSPACE}:/zap/wrk/:rw" \
