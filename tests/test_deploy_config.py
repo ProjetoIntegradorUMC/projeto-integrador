@@ -55,7 +55,6 @@ def test_provision_sh_unifica_execucao_de_scripts_sql_sem_duplicacao():
     assert "psql --quiet --set ON_ERROR_STOP=1" in content
 
 
-
 def test_docker_compose_prod_traefik_e_isolamento_banco():
     compose_prod = PROJECT_ROOT / "docker-compose.prod.yml"
     assert compose_prod.exists()

@@ -4,6 +4,10 @@ body {
     min-height: 100vh;
 }
 
+.qr-code-image {
+    max-width: 200px;
+}
+
 .app-shell {
     padding: 1rem;
 }
