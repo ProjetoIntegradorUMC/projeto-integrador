@@ -62,6 +62,15 @@ function openAccountDeletionModal(endpoint, method, title) {
     accountDeletionModal.show();
 }
 
+// mostra a mensagem com textContent, o navegador nunca interpreta como HTML
+function showAlert(element, type, text, extraClass = "") {
+    const div = document.createElement("div");
+    div.className = `alert alert-${type} ${extraClass}`.trim();
+    div.textContent = String(text ?? "");
+    element.replaceChildren();
+    element.appendChild(div);
+}
+
 // SEÇÃO DE NAVEGAÇÃO
 
 showRegister.addEventListener("click", () => {
@@ -252,11 +261,11 @@ offerTutoringForm.addEventListener("submit", async (event) => {
         const data = await response.json();
 
         if (!response.ok) {
-            offerTutoringMessage.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            showAlert(offerTutoringMessage, "danger", data.error);
             return;
         }
 
-        offerTutoringMessage.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+        showAlert(offerTutoringMessage, "success", data.message);
         offerTutoringForm.reset();
         loadTutoringOffers();
     } catch (error) {
@@ -302,8 +311,7 @@ async function executeEnrollmentAction() {
         const data = await response.json();
 
         if (!response.ok) {
-            enrollmentConfirmationMessage.innerHTML =
-                `<div class="alert alert-danger mb-0">${data.error}</div>`;
+            showAlert(enrollmentConfirmationMessage, "danger", data.error, "mb-0");
             return;
         }
 
@@ -369,19 +377,11 @@ registerForm.addEventListener("submit", async (event) => {
         const data = await response.json();
 
         if (!response.ok) {
-            registerMessage.innerHTML = `
-                <div class="alert alert-danger">
-                    ${data.error}
-                </div>
-            `;
+            showAlert(registerMessage, "danger", data.error);
             return;
         }
 
-        registerMessage.innerHTML = `
-            <div class="alert alert-success">
-                ${data.message}
-            </div>
-        `;
+        showAlert(registerMessage, "success", data.message);
 
         registerForm.reset();
 
@@ -417,19 +417,11 @@ forgotPasswordForm.addEventListener("submit", async (event) => {
         const data = await response.json();
 
         if (!response.ok) {
-            forgotPasswordMessage.innerHTML = `
-                <div class="alert alert-danger">
-                    ${data.error}
-                </div>
-            `;
+            showAlert(forgotPasswordMessage, "danger", data.error);
             return;
         }
 
-        forgotPasswordMessage.innerHTML = `
-            <div class="alert alert-success">
-                ${data.message}
-            </div>
-        `;
+        showAlert(forgotPasswordMessage, "success", data.message);
 
         forgotPasswordForm.reset();
 
@@ -490,19 +482,11 @@ resetPasswordForm.addEventListener("submit", async (event) => {
         const data = await response.json();
 
         if (!response.ok) {
-            resetPasswordMessage.innerHTML = `
-                <div class="alert alert-danger">
-                    ${data.error}
-                </div>
-            `;
+            showAlert(resetPasswordMessage, "danger", data.error);
             return;
         }
 
-        resetPasswordMessage.innerHTML = `
-            <div class="alert alert-success">
-                ${data.message}
-            </div>
-        `;
+        showAlert(resetPasswordMessage, "success", data.message);
 
         resetPasswordForm.reset();
 
@@ -550,11 +534,7 @@ loginForm.addEventListener("submit", async (event) => {
         const data = await response.json();
 
         if (!response.ok) {
-            loginMessage.innerHTML = `
-                <div class="alert alert-danger">
-                    ${data.error}
-                </div>
-            `;
+            showAlert(loginMessage, "danger", data.error);
             return;
         }
 
@@ -600,11 +580,7 @@ twoFactorForm.addEventListener("submit", async (event) => {
         const data = await response.json();
 
         if (!response.ok) {
-            twoFactorMessage.innerHTML = `
-                <div class="alert alert-danger">
-                    ${data.error}
-                </div>
-            `;
+            showAlert(twoFactorMessage, "danger", data.error);
             return;
         }
 
@@ -647,11 +623,22 @@ function showDashboard() {
 
     // Exibir informações do usuário
     const userInfo = document.getElementById("userInfo");
-    userInfo.innerHTML = `
-        <strong>Nome completo:</strong> ${currentUser.full_name}<br>
-        <strong>Usuário:</strong> ${currentUser.username}<br>
-        <strong>E-mail:</strong> ${currentUser.email}
-    `;
+    userInfo.replaceChildren();
+
+        const campos = [
+            ["Nome completo", currentUser.full_name],
+            ["Usuário", currentUser.username],
+            ["E-mail", currentUser.email],
+        ];
+
+        campos.forEach(([rotulo, valor], i) => {
+            const strong = document.createElement("strong");
+            strong.textContent = `${rotulo}:`;
+            userInfo.append(strong, ` ${valor}`);
+            if (i < campos.length - 1) {
+                userInfo.append(document.createElement("br"));
+            }
+        });
 
     const consentStatus = document.getElementById("consentStatus");
     const revokeConsentBtn = document.getElementById("revokeConsentBtn");
@@ -724,11 +711,7 @@ async function generateTwoFactorQR() {
         const data = await response.json();
 
         if (!response.ok) {
-            setupTwoFactorMessage.innerHTML = `
-                <div class="alert alert-danger">
-                    Erro ao gerar QR code: ${data.error}
-                </div>
-            `;
+            showAlert(setupTwoFactorMessage, "danger", `Erro ao gerar QR code: ${data.error}`);
             return;
         }
 
@@ -737,7 +720,12 @@ async function generateTwoFactorQR() {
 
         // Exibir QR code
         const qrContainer = document.getElementById("qrCodeContainer");
-        qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code" class="qr-code-image">`;
+        const qrImage = document.createElement("img");
+        qrImage.src = data.qr_code;
+        qrImage.alt = "QR Code";
+        qrImage.className = "qr-code-image";
+        qrContainer.replaceChildren();
+        qrContainer.appendChild(qrImage);
 
         // Exibir chave manual
         const keyContainer = document.getElementById("manualKeyContainer");
@@ -782,19 +770,11 @@ confirmTwoFactorForm.addEventListener("submit", async (event) => {
         const data = await response.json();
 
         if (!response.ok) {
-            setupTwoFactorMessage.innerHTML = `
-                <div class="alert alert-danger">
-                    ${data.error}
-                </div>
-            `;
+            showAlert(setupTwoFactorMessage, "danger", data.error);
             return;
         }
 
-        setupTwoFactorMessage.innerHTML = `
-            <div class="alert alert-success">
-                ${data.message}
-            </div>
-        `;
+        showAlert(setupTwoFactorMessage, "success", data.message);
 
         confirmTwoFactorForm.reset();
         document.getElementById("setupTwoFactorCode").value = "";
@@ -834,19 +814,11 @@ disableTwoFactorForm.addEventListener("submit", async (event) => {
         const data = await response.json();
 
         if (!response.ok) {
-            disableTwoFactorMessage.innerHTML = `
-                <div class="alert alert-danger">
-                    ${data.error}
-                </div>
-            `;
+            showAlert(disableTwoFactorMessage, "danger", data.error);
             return;
         }
 
-        disableTwoFactorMessage.innerHTML = `
-            <div class="alert alert-success">
-                ${data.message}
-            </div>
-        `;
+        showAlert(disableTwoFactorMessage, "success", data.message);
 
         disableTwoFactorForm.reset();
         document.getElementById("disableTwoFactorPassword").value = "";
@@ -907,31 +879,44 @@ async function loadLGPDData() {
         const offers = data["Monitorias oferecidas"];
         const enrollments = data["Inscrições em monitorias"];
 
-        let html = `
-            <ul class="list-group list-group-flush small bg-transparent">
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Nome completo:</strong> ${personalData["Nome completo"]}</li>
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Nome de usuário:</strong> ${personalData["Nome de usuário"]}</li>
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>E-mail:</strong> ${personalData["E-mail"]}</li>
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1"><strong>Autenticação em dois fatores:</strong> ${personalData["Autenticação em dois fatores"]}</li>
-        `;
+        const list = document.createElement("ul");
+        list.className = "list-group list-group-flush small bg-transparent";
+
+        const addItem = (label, value, extraClass = "") => {
+            const li = document.createElement("li");
+            li.className = `list-group-item bg-transparent px-0 border-bottom-0 pb-1 ${extraClass}`.trim();
+            const strong = document.createElement("strong");
+            strong.textContent = `${label}:`;
+            li.append(strong, ` ${value}`);
+            list.appendChild(li);
+        };
+
+        addItem("Nome completo", personalData["Nome completo"]);
+        addItem("Nome de usuário", personalData["Nome de usuário"]);
+        addItem("E-mail", personalData["E-mail"]);
+        addItem("Autenticação em dois fatores", personalData["Autenticação em dois fatores"]);
 
         if (personalData.Consentimento) {
             const consent = personalData.Consentimento;
-            html += `
-                <li class="list-group-item bg-transparent px-0 border-bottom-0 pb-1 text-success">
-                    <strong>Consentimento:</strong> Registrado em ${new Date(consent["Registrado em"]).toLocaleString()} (Versão ${consent["Versão"]})
-                </li>
-            `;
+            addItem(
+                "Consentimento",
+                `Registrado em ${new Date(consent["Registrado em"]).toLocaleString()} (Versão ${consent["Versão"]})`,
+                "text-success"
+            );
         }
 
-        html += `
-            </ul>
-            <div class="mt-3 small">
-                <strong>Resumo da conta:</strong> Você possui ${offers.length} monitoria(s) oferecida(s) e ${enrollments.length} inscrição(ões) ativa(s).
-            </div>
-        `;
+        const summary = document.createElement("div");
+        summary.className = "mt-3 small";
+        const summaryLabel = document.createElement("strong");
+        summaryLabel.textContent = "Resumo da conta:";
+        summary.append(
+            summaryLabel,
+            ` Você possui ${offers.length} monitoria(s) oferecida(s) e ${enrollments.length} inscrição(ões) ativa(s).`
+        );
 
-        container.innerHTML = html;
+        container.replaceChildren();
+        container.append(list, summary);
+
     } catch (error) {
         container.innerHTML = `<span class="text-danger">Não foi possível carregar os dados.</span>`;
         console.error(error);
@@ -944,9 +929,9 @@ if (exportDataBtn) {
         try {
             const response = await fetch("/lgpd/export");
             if (!response.ok) throw new Error("Erro ao exportar dados.");
-            
+
             const data = await response.json();
-            
+
             // Cria um arquivo JSON e força o download
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
             const downloadAnchorNode = document.createElement('a');
@@ -1043,7 +1028,7 @@ async function loadAuditData() {
 
         // Atualizar Tabela de Eventos Recentes
         tableBody.innerHTML = "";
-        
+
         if (data.recent_events.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhum evento registrado.</td></tr>';
             return;

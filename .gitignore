@@ -27,3 +27,7 @@ certs/
 # Scripts locais legados descontinuados (não versionados)
 setup_db.py
 desbloquear_usuario.py
+# Bearer (arquivos locais)
+bin/
+bearer-saida.txt
+bearer-report.json

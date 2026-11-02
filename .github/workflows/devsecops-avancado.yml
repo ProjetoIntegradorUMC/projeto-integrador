@@ -108,3 +108,50 @@ jobs:
         run: |
           docker logs mentory-dast || true
           docker rm --force mentory-dast || true
+
+  privacy-bearer:
+    name: Auditoria de privacidade com Privacy Bearer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # versão fixa, conferir a última em github.com/Bearer/bearer/releases
+      BEARER_VERSION: v2.1.3
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Instalar Bearer CLI
+        # instala numa pasta temporária e adiciona no PATH
+        run: |
+          curl -sfL https://raw.githubusercontent.com/Bearer/bearer/main/contrib/install.sh \
+            | sh -s -- -b "${RUNNER_TEMP}/bin" "${BEARER_VERSION}"
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+
+      # Regras do Bearer que se aplicam à LGPD (mais detalhes em docs/dados-pessoais.md):
+      # - logger_leak: dado pessoal indo para o log (Art. 6º VII e Art. 46)
+      # - third_parties: dado pessoal saindo para serviço externo (Art. 26 e Art. 33)
+      # - comunicação insegura, cookies e criptografia fraca (Art. 46)
+      # - secrets: chave ou senha no código (Art. 46)
+      # - injection e XSS: falta de sanitização dos dados (Art. 6º VIII)
+      #
+      # Não usar --exit-code 1, senão o job falha até sem achados.
+      # Quem bloqueia o build é o --fail-on-severity.
+      # O .github/* fica fora porque o scan de secrets reclama das senhas de CI do dast-zap.
+      - name: Rodar Bearer
+        run: |
+          bearer scan . \
+            --scanner sast,secrets \
+            --format json \
+            --output bearer-report.json \
+            --fail-on-severity critical,high \
+            --skip-path ".github/*,.zap/*,docs/*,**/node_modules/**"
+
+      - name: Publicar relatório do Bearer
+        # always() pra subir o relatório mesmo quando o scan falhar
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bearer-privacy-report
+          path: bearer-report.json
+          if-no-files-found: error

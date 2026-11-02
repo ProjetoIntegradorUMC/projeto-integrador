@@ -1,0 +1,14 @@
+{
+  "6611f2c286c440cd562ba7f4f511e7d3_0": {
+    "author": "Leandro",
+    "comment": "random usado só para decidir quando limpar o cache do rate limit, sem finalidade criptográfica",
+    "false_positive": true,
+    "ignored_at": "2026-11-02T23:54:22Z"
+  },
+  "f9fb1d59d9c0b913e03fd6c1d4326946_0": {
+    "author": "Leandro",
+    "comment": "starttls com ssl.create_default_context() chamado logo após a conexão e antes do login, sem envio de credenciais em texto puro",
+    "false_positive": true,
+    "ignored_at": "2026-11-02T23:54:21Z"
+  }
+}
