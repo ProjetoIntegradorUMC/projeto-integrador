@@ -31,3 +31,6 @@ desbloquear_usuario.py
 bin/
 bearer-saida.txt
 bearer-report.json
+
+# SBOM gerado localmente
+sbom.json
