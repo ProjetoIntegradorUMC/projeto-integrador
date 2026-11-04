@@ -9,6 +9,16 @@
 
 ---
 
+## 👨‍💻 Equipe de Desenvolvimento
+
+Este projeto foi desenvolvido de forma colaborativa pelos integrantes:
+
+- [João Portella](https://github.com/joaolucasportella)
+- [Leandro Nascimento](https://github.com/leandroliveira-dev)
+- [Thiago Domingues](https://github.com/DominguesTH)
+
+---
+
 ## 🎯 Por que o Mentory? (Diferencial e Escalabilidade)
 
 - **Problema Real:** Ataca a dificuldade de acompanhamento em disciplinas específicas, o que está diretamente ligado à evasão escolar. Não é apenas um cadastro genérico.
