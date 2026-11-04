@@ -155,3 +155,45 @@ jobs:
           name: bearer-privacy-report
           path: bearer-report.json
           if-no-files-found: error
+
+  sbom-trivy:
+    name: SBOM CycloneDX com Trivy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # SBOM é o inventário de tudo que o projeto usa bibliotecas e versões.
+      # Formato CycloneDX JSON é padrão aberto da OWASP, lido por scanners e ferramentas
+      # de auditoria, serve para conferir depois se uma vulnerabilidade conhecida nova atinge alguma dependência nossa.
+      # Action fixada por SHA (v0.35.0), depois de algumas pesquisas encontrei que em março/2026 as tags do trivy-action foram
+      # sequestradas, então não usar @master nem tag.
+      - name: Gerar SBOM CycloneDX
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: cyclonedx
+          output: sbom.json
+          skip-dirs: .venv,node_modules
+
+      - name: Publicar SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.json
+          if-no-files-found: error
+
+      # Só informativo: mostra vulnerabilidades conhecidas no log e nunca bloqueia o build
+      - name: Listar vulnerabilidades conhecidas
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: '0'
+          severity: CRITICAL,HIGH
+          skip-dirs: .venv,node_modules
