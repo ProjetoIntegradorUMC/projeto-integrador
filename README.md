@@ -50,6 +50,7 @@ Nesta fase inicial do projeto, implementamos a fundação de segurança do Mento
 - **[Ler a Documentação Técnica do Painel de Auditoria ](docs/auditoria-logs.md)**
 - **[Ler a documentação das variáveis de ambiente](docs/configuracao-ambiente.md)**
 - **[Ler a Documentação de Segurança no Pipeline de CI/CD](docs/pipeline-seguranca.md)**
+- **[Relatório Técnico da arquitetura DevSecOps open-source (PDF)](docs/relatorio-devsecops-avancado.pdf)**
 - **[Ler a documentação de Rate Limiting](docs/rate-limiting.md)**
 - **[Validação dos requisitos do checklist](docs/validacao-requisitos.md)**: mapeamento completo dos itens às evidências do repositório
 - **[Ler o Guia de Deploy em Produção na VPS (Traefik + CD)](docs/deploy-vps.md)**
