@@ -160,10 +160,27 @@ jobs:
     name: SBOM CycloneDX com Trivy
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      TRIVY_VERSION: 0.69.3
+      TRIVY_SHA256: 1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75
 
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # O setup-trivy baixa o binário de get.trivy.dev, que saiu do ar em 03/11/2026
+      # (aquasecurity/setup-trivy#42). Por isso o Trivy é instalado direto do GitHub Releases,
+      # com conferência do SHA-256. Quando a correção sair, dá para voltar ao setup padrão.
+      - name: Instalar Trivy
+        run: |
+          curl -sSfL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/trivy-bin"
+          tar -xzf trivy.tar.gz -C "${RUNNER_TEMP}/trivy-bin" trivy
+          rm trivy.tar.gz
+          echo "${RUNNER_TEMP}/trivy-bin" >> "${GITHUB_PATH}"
+          "${RUNNER_TEMP}/trivy-bin/trivy" --version
 
       # SBOM é o inventário de tudo que o projeto usa bibliotecas e versões.
       # Formato CycloneDX JSON é padrão aberto da OWASP, lido por scanners e ferramentas
@@ -173,7 +190,7 @@ jobs:
       - name: Gerar SBOM CycloneDX
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
-          version: v0.69.3
+          skip-setup-trivy: true
           scan-type: fs
           scan-ref: .
           format: cyclonedx
@@ -192,7 +209,7 @@ jobs:
         continue-on-error: true
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
-          version: v0.69.3
+          skip-setup-trivy: true
           scan-type: fs
           scan-ref: .
           format: table
