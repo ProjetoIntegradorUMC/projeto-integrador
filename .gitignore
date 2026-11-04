@@ -34,3 +34,6 @@ bearer-report.json
 
 # SBOM gerado localmente
 sbom.json
+
+# Documentos editáveis gerados localmente
+*.docx
