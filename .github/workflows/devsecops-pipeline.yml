@@ -1,0 +1,38 @@
+name: Pipeline DevSecOps Fundamental
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Principio do Menor Privilegio: revoga todas as permissoes padrao do GITHUB_TOKEN no escopo global.
+permissions: {}
+
+jobs:
+  secrets-scan:
+    name: Varredura de Segredos (TruffleHog)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      # fetch-depth: 0 faz o clone completo do historico Git para permitir que o TruffleHog
+      # inspecione todos os commits do push ou do diff do Pull Request sem perder referencias.
+      - name: Checkout do repositório com histórico completo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      # Escopo da varredura: analisa os commits introduzidos no push ou no diff do Pull Request
+      # em busca de credenciais vazadas (chaves Fernet, SECRET_KEY, TOTP_ENCRYPTION_KEY, senhas de banco e tokens).
+      # Razao da flag --only-verified: filtra apenas segredos validados ativamente ou de alta confianca,
+      # eliminando falsos positivos em strings de teste ou hashes simulados. A action oficial ja injeta
+      # nativamente a flag --fail na execucao do container, bloqueando o merge (exit code 183) se encontrar segredos.
+      - name: Executar varredura de segredos com TruffleHog
+        uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
+        with:
+          extra_args: --only-verified
