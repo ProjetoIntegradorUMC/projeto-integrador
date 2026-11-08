@@ -22,8 +22,6 @@ Quando for necessário atualizar uma action externa:
 3. Obtenha o commit hash SHA exato correspondente ao commit daquela tag de release.
 4. Atualize o arquivo de workflow substituindo o SHA antigo pelo novo e atualizando o comentário da versão.
 5. Valide a execução do workflow em uma branch de teste antes de integrá-lo à `main`.
-<<<<<<< Updated upstream
-=======
 
 ## 4. Esteira DevSecOps Fundamental (`.github/workflows/devsecops-pipeline.yml`)
 
@@ -52,4 +50,3 @@ O arquivo `requirements.txt` declara as dependências Python do Mentory com vers
   - `exit-code: '1'`: faz o step retornar erro e bloquear o merge caso sejam encontradas vulnerabilidades que atendam ao critério de severidade. Na implantação inicial do job, o Trivy detectou CVEs de severidade Alta na biblioteca `cryptography` (incluindo `CVE-2026-40247`, `CVE-2026-40249` e `GHSA-5379-gmf8-6ccf`), bloqueando a PR até a atualização da dependência para `cryptography==50.0.0` no `requirements.txt`.
   - `ignore-unfixed: true`: suprime CVEs que ainda não possuem versão corrigida disponibilizada pelos mantenedores da biblioteca, evitando falsos bloqueios da esteira quando não há atualização aplicável.
 - **Artefato de auditoria (`trivy-sca-report`):** Ao término da varredura (mesmo em caso de falha, graças à condição `if: always()`), o relatório JSON (`trivy-sca-report.json`) é publicado na aba Actions via `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2` sob o nome `trivy-sca-report`.
->>>>>>> Stashed changes
