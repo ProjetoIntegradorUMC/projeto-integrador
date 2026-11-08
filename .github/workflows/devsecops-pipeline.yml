@@ -30,9 +30,9 @@ jobs:
       # Escopo da varredura: analisa os commits introduzidos no push ou no diff do Pull Request
       # em busca de credenciais vazadas (chaves Fernet, SECRET_KEY, TOTP_ENCRYPTION_KEY, senhas de banco e tokens).
       # Razao da flag --only-verified: filtra apenas segredos validados ativamente ou de alta confianca,
-      # eliminando falsos positivos em strings de teste ou hashes simulados e garantindo que --fail
-      # bloqueie o merge (exit code != 0) sempre que uma credencial real for detectada.
+      # eliminando falsos positivos em strings de teste ou hashes simulados. A action oficial ja injeta
+      # nativamente a flag --fail na execucao do container, bloqueando o merge (exit code 183) se encontrar segredos.
       - name: Executar varredura de segredos com TruffleHog
         uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
         with:
-          extra_args: --only-verified --fail
+          extra_args: --only-verified

@@ -34,6 +34,6 @@ Embora o repositório possua regras restritivas no `.gitignore` cobrindo arquivo
 - **Ferramenta adotada:** [TruffleHog OSS](https://github.com/trufflesecurity/trufflehog) (`trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8`).
 - **Permissões do job:** `contents: read` (com `permissions: {}` declarado globalmente no workflow).
 - **Escopo da análise:** O checkout é realizado com `fetch-depth: 0` (`actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2`), disponibilizando o histórico completo de commits para que o TruffleHog inspecione todas as alterações introduzidas no `push` ou no diff do `pull_request`.
-- **Critério de bloqueio (`--only-verified --fail`):**
-  - `--only-verified`: restringe os alertas a segredos e credenciais efetivamente verificáveis, reduzindo falsos positivos em dados simulados de testes automatizados.
-  - `--fail`: instrui o TruffleHog a encerrar com código de saída diferente de zero (`exit code 183`) caso um segredo seja identificado, interrompendo o pipeline e bloqueando o merge do Pull Request.
+- **Critério de bloqueio (`--only-verified` + `--fail` nativo):**
+  - `--only-verified`: passado em `extra_args`, restringe os alertas a segredos e credenciais efetivamente verificáveis, reduzindo falsos positivos em dados simulados de testes automatizados.
+  - `--fail`: injetado nativamente pela própria action `trufflesecurity/trufflehog`, instrui o TruffleHog a encerrar com código de saída diferente de zero (`exit code 183`) caso um segredo seja identificado, interrompendo o pipeline e bloqueando o merge do Pull Request.
