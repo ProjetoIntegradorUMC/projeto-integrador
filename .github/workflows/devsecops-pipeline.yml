@@ -36,3 +36,62 @@ jobs:
         uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
         with:
           extra_args: --only-verified
+
+  sca-trivy:
+    name: Análise de Dependências SCA (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      TRIVY_VERSION: 0.69.3
+      TRIVY_SHA256: 1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # O setup padrao do Trivy depende de get.trivy.dev, que apresentou instabilidade (aquasecurity/setup-trivy#42).
+      # Para garantir disponibilidade e seguranca na cadeia de suprimentos, o binario oficial e baixado
+      # diretamente do GitHub Releases com verificacao estrita de checksum SHA-256.
+      - name: Instalar Trivy com verificação SHA-256
+        run: |
+          curl -sSfL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/trivy-bin"
+          tar -xzf trivy.tar.gz -C "${RUNNER_TEMP}/trivy-bin" trivy
+          rm trivy.tar.gz
+          echo "${RUNNER_TEMP}/trivy-bin" >> "${GITHUB_PATH}"
+          "${RUNNER_TEMP}/trivy-bin/trivy" --version
+
+      # Executa Software Composition Analysis (SCA) em modo filesystem (fs) a partir da raiz do repositorio,
+      # cobrindo o requirements.txt e demais manifestos. Bloqueia o pipeline (exit-code: '1') caso existam
+      # CVEs de severidade HIGH ou CRITICAL que ja possuam correcao publicada (ignore-unfixed: true).
+      - name: Executar varredura SCA com Trivy
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          skip-setup-trivy: true
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: json
+          output: trivy-sca-report.json
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          skip-dirs: .venv,node_modules
+
+      - name: Exibir resumo de vulnerabilidades SCA no log
+        if: always()
+        run: |
+          jq -r '.Results[]? | select(.Vulnerabilities != null) | .Vulnerabilities[] | "\(.Severity) | \(.PkgName) (\(.InstalledVersion) -> \(.FixedVersion)) | \(.VulnerabilityID): \(.Title)"' trivy-sca-report.json || true
+
+      # Publica o relatorio de auditoria como artefato da execucao mesmo quando o scan encontra CVEs e falha o step anterior.
+      - name: Publicar relatório SCA do Trivy
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trivy-sca-report
+          path: trivy-sca-report.json
+          if-no-files-found: error

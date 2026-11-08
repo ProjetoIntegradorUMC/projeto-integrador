@@ -37,3 +37,16 @@ Embora o repositório possua regras restritivas no `.gitignore` cobrindo arquivo
 - **Critério de bloqueio (`--only-verified` + `--fail` nativo):**
   - `--only-verified`: passado em `extra_args`, restringe os alertas a segredos e credenciais efetivamente verificáveis, reduzindo falsos positivos em dados simulados de testes automatizados.
   - `--fail`: injetado nativamente pela própria action `trufflesecurity/trufflehog`, instrui o TruffleHog a encerrar com código de saída diferente de zero (`exit code 183`) caso um segredo seja identificado, interrompendo o pipeline e bloqueando o merge do Pull Request.
+
+### 4.2 Análise de Vulnerabilidades em Dependências - SCA (`sca-trivy`)
+
+O arquivo `requirements.txt` declara as dependências Python do Mentory com versões fixas (como `Flask`, `Werkzeug`, `cryptography`, `bcrypt`, `SQLAlchemy` e `psycopg2-binary`). O job `sca-trivy` realiza a análise contínua de composição de software (*Software Composition Analysis* - SCA) para identificar vulnerabilidades públicas (CVEs) descobertas nessas bibliotecas ao longo do tempo.
+
+- **Ferramenta adotada:** [Aqua Security Trivy](https://github.com/aquasecurity/trivy) (`aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0`), utilizando o binário oficial `v0.69.3` validado por checksum `SHA-256`.
+- **Permissões do job:** `contents: read`.
+- **Escopo da análise:** Executado em modo `fs` (*filesystem*, `scanners: vuln`) apontando para o diretório raiz do repositório (`scan-ref: .`), inspecionando o `requirements.txt` e quaisquer outros manifestos de pacotes presentes (ignorando diretórios locais como `.venv` e `node_modules`).
+- **Critério de severidade e lógica de bloqueio:**
+  - `severity: HIGH,CRITICAL`: filtra exclusivamente vulnerabilidades de severidade Alta ou Crítica catalogadas em bases de CVEs.
+  - `exit-code: '1'`: faz o step retornar erro e bloquear o merge caso sejam encontradas vulnerabilidades que atendam ao critério de severidade. Na implantação inicial do job, o Trivy detectou CVEs de severidade Alta na biblioteca `cryptography` (incluindo `CVE-2026-40247`, `CVE-2026-40249` e `GHSA-5379-gmf8-6ccf`), bloqueando a PR até a atualização da dependência para `cryptography==50.0.0` no `requirements.txt`.
+  - `ignore-unfixed: true`: suprime CVEs que ainda não possuem versão corrigida disponibilizada pelos mantenedores da biblioteca, evitando falsos bloqueios da esteira quando não há atualização aplicável.
+- **Artefato de auditoria (`trivy-sca-report`):** Ao término da varredura (mesmo em caso de falha, graças à condição `if: always()`), o relatório JSON (`trivy-sca-report.json`) é publicado na aba Actions via `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2` sob o nome `trivy-sca-report`.
