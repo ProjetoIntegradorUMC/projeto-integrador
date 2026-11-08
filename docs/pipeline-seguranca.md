@@ -22,3 +22,18 @@ Quando for necessário atualizar uma action externa:
 3. Obtenha o commit hash SHA exato correspondente ao commit daquela tag de release.
 4. Atualize o arquivo de workflow substituindo o SHA antigo pelo novo e atualizando o comentário da versão.
 5. Valide a execução do workflow em uma branch de teste antes de integrá-lo à `main`.
+
+## 4. Esteira DevSecOps Fundamental (`.github/workflows/devsecops-pipeline.yml`)
+
+O workflow `devsecops-pipeline.yml` executa verificações automatizadas de segurança (*Shift-Left Security*) em cada `push` e `pull_request` direcionados à branch `main`, atuando como barreira preventiva antes da integração do código.
+
+### 4.1 Varredura de Segredos no Histórico Git (`secrets-scan`)
+
+Embora o repositório possua regras restritivas no `.gitignore` cobrindo arquivos sensíveis (`.env`, `.env.*`, `*.pem`, `*.key`), o job `secrets-scan` adiciona uma camada ativa de verificação no CI para impedir que credenciais como `SECRET_KEY`, `TOTP_ENCRYPTION_KEY`, chaves Fernet ou senhas do PostgreSQL sejam acidentalmente commitadas no histórico Git.
+
+- **Ferramenta adotada:** [TruffleHog OSS](https://github.com/trufflesecurity/trufflehog) (`trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8`).
+- **Permissões do job:** `contents: read` (com `permissions: {}` declarado globalmente no workflow).
+- **Escopo da análise:** O checkout é realizado com `fetch-depth: 0` (`actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2`), disponibilizando o histórico completo de commits para que o TruffleHog inspecione todas as alterações introduzidas no `push` ou no diff do `pull_request`.
+- **Critério de bloqueio (`--only-verified --fail`):**
+  - `--only-verified`: restringe os alertas a segredos e credenciais efetivamente verificáveis, reduzindo falsos positivos em dados simulados de testes automatizados.
+  - `--fail`: instrui o TruffleHog a encerrar com código de saída diferente de zero (`exit code 183`) caso um segredo seja identificado, interrompendo o pipeline e bloqueando o merge do Pull Request.
