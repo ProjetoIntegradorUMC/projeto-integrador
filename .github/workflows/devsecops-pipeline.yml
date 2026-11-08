@@ -74,12 +74,18 @@ jobs:
           skip-setup-trivy: true
           scan-type: fs
           scan-ref: .
+          scanners: vuln
           format: json
           output: trivy-sca-report.json
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
           skip-dirs: .venv,node_modules
+
+      - name: Exibir resumo de vulnerabilidades SCA no log
+        if: always()
+        run: |
+          jq -r '.Results[]? | select(.Vulnerabilities != null) | .Vulnerabilities[] | "\(.Severity) | \(.PkgName) (\(.InstalledVersion) -> \(.FixedVersion)) | \(.VulnerabilityID): \(.Title)"' trivy-sca-report.json || true
 
       # Publica o relatorio de auditoria como artefato da execucao mesmo quando o scan encontra CVEs e falha o step anterior.
       - name: Publicar relatório SCA do Trivy
