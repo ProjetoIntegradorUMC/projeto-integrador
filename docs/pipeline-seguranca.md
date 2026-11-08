@@ -50,3 +50,16 @@ O arquivo `requirements.txt` declara as dependências Python do Mentory com vers
   - `exit-code: '1'`: faz o step retornar erro e bloquear o merge caso sejam encontradas vulnerabilidades que atendam ao critério de severidade. Na implantação inicial do job, o Trivy detectou CVEs de severidade Alta na biblioteca `cryptography` (incluindo `CVE-2026-40247`, `CVE-2026-40249` e `GHSA-5379-gmf8-6ccf`), bloqueando a PR até a atualização da dependência para `cryptography==50.0.0` no `requirements.txt`.
   - `ignore-unfixed: true`: suprime CVEs que ainda não possuem versão corrigida disponibilizada pelos mantenedores da biblioteca, evitando falsos bloqueios da esteira quando não há atualização aplicável.
 - **Artefato de auditoria (`trivy-sca-report`):** Ao término da varredura (mesmo em caso de falha, graças à condição `if: always()`), o relatório JSON (`trivy-sca-report.json`) é publicado na aba Actions via `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2` sob o nome `trivy-sca-report`.
+
+### 4.3 Análise Estática de Código - SAST (`sast`)
+
+Os testes automatizados do projeto (`tests/test_*.py`) validam comportamento funcional, mas não detectam padrões de código vulnerável, como uso inseguro de funções criptográficas, injeção ou `innerHTML` com dados externos. O job `sast` faz a análise estática (*Static Application Security Testing*) do código-fonte Python e JavaScript a cada `push` e `pull_request` direcionados à `main`.
+
+- **Ferramenta adotada:** [Semgrep](https://github.com/semgrep/semgrep) `v1.183.0`, instalado com `pip` em ambiente virtual isolado e com versão fixa. A `semgrep-action` não foi usada porque está descontinuada (repositório arquivado em 2024). O Semgrep foi escolhido por funcionar em repositórios públicos e privados sem licença adicional, enquanto o CodeQL exige GitHub Advanced Security em repositórios privados.
+- **Permissões do job:** `contents: read`.
+- **Escopo da análise:** `backend/app` (Flask) e `frontend/js` (JavaScript), com `--exclude tests/` para evitar falsos positivos nos fixtures de teste.
+- **Rulesets configurados:** `p/python` e `p/flask` para o backend, e `p/javascript` para o frontend.
+- **Critério de bloqueio:** `--severity ERROR` com `--error` faz o job falhar (exit code 1) quando existe achado de severidade `ERROR`. Achados `WARNING` e `INFO` não bloqueiam.
+- **Passo informativo:** antes do passo de bloqueio, o job roda o mesmo scan sem `--severity` e sem `--error`, para registrar no log os achados de todas as severidades. Esse passo usa `continue-on-error: true` e nunca bloqueia o build.
+- **Telemetria:** `--metrics off` impede o envio de métricas de uso ao Semgrep.
+- **Regras externas:** os rulesets são baixados do registro do Semgrep a cada execução. Se o registro estiver indisponível, o job vai falhar.
