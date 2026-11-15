@@ -76,8 +76,10 @@ def delete_account(current_user):
     Deleta a conta do usuário. Exige confirmação prévia da senha atual
     do titular para impedir exclusões acidentais, cliques indevidos ou
     ataques como CSRF e sessões sequestradas.
-    O ON DELETE CASCADE configurado nos models garante que sessões, inscrições
-    e monitorias sejam apagadas em cascata.
+
+    O ON DELETE CASCADE apaga sessões, tokens, inscrições e monitorias do banco ativo.
+    Esta rota não grava novo registro com e-mail nos logs; registros históricos
+    anteriores permanecem com user_id=NULL e são pseudonimizados após 90 dias.
     """
     data = request.get_json(silent=True) or {}
     password = data.get("password")
