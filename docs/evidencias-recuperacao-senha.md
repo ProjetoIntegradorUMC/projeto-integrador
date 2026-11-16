@@ -84,3 +84,49 @@ Todos os passos deste roteiro são executados exclusivamente pela interface
 do frontend, incluindo a solicitação de recuperação, acesso ao link,
 redefinição da senha, login com a nova senha e as tentativas com tokens
 expirados ou já utilizados.
+
+## 7. Entrega SMTP em produção (`https://mentory.stack-n8n.cloud`)
+
+### Passo a passo
+
+1. Acessar o ambiente de produção em `https://mentory.stack-n8n.cloud`.
+2. Solicitar a recuperação de senha via `POST /auth/forgot-password` para um endereço de e-mail cadastrado.
+3. Confirmar o disparo SMTP autenticado a partir do remetente `projetomentory@gmail.com` contendo o assunto de redefinição e o link único com validade de 15 minutos.
+
+![E-mail de recuperação recebido](img/31-email-recuperacao.png)
+
+## 8. Uniformidade de resposta e proteção contra enumeração de contas
+
+Para impedir que atacantes identifiquem quais endereços de e-mail possuem cadastro ativo na plataforma, o endpoint `POST /auth/forgot-password` devolve o mesmo código HTTP, mensagem genérica e comportamento temporal tanto para e-mails cadastrados quanto para e-mails inexistentes.
+
+### 8.1. Validação operacional em produção (`curl`)
+
+Comparação direta do código de status HTTP retornado pelo ambiente de produção (`https://mentory.stack-n8n.cloud/auth/forgot-password`) para e-mail cadastrado e e-mail inexistente:
+
+```bash
+$ curl -s -o /dev/null -w "%{http_code}\n" -X POST https://mentory.stack-n8n.cloud/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "<email-cadastrado>"}'
+200
+
+$ curl -s -o /dev/null -w "%{http_code}\n" -X POST https://mentory.stack-n8n.cloud/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "nao-existe@exemplo.invalid"}'
+200
+```
+
+Na sequência de requisições consecutivas pelo mesmo IP, ambos os cenários também receberam tratamento uniforme do controle de *rate limiting* (código HTTP, corpo JSON e latência equivalente):
+
+```text
+--- E-mail cadastrado ---
+{"error":"Muitas tentativas. Tente novamente em 11 minuto(s)."}
+HTTP_CODE: 429 | TIME_TOTAL: 0.086648s
+
+--- E-mail não cadastrado ---
+{"error":"Muitas tentativas. Tente novamente em 11 minuto(s)."}
+HTTP_CODE: 429 | TIME_TOTAL: 0.067152s
+```
+
+### 8.2. Cobertura automatizada (`tests/test_account_enumeration.py`)
+
+A proteção contra enumeração de contas no fluxo de recuperação de senha também é verificada de forma automatizada na suíte de testes em `tests/test_account_enumeration.py`, que valida que `POST /auth/forgot-password` retorna exatamente o mesmo código HTTP e o mesmo payload JSON para e-mails existentes e inexistentes (função `test_forgot_password_retorna_mesma_resposta_para_email_existente_e_inexistente`), além de cobrir anti-enumeração e mitigação de *timing attack* no login e no cadastro.
