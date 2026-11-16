@@ -919,6 +919,10 @@ def revoke_consent(current_user):
     """
     Revogar o consentimento implica excluir permanentemente a conta.
     Exige confirmação da senha do titular para evitar revogação/exclusão acidental.
+
+    De forma intencional, os logs de auditoria (security_logs e password_reset_logs) não são
+    apagados — eles permanecem retidos por legítimo interesse de segurança
+    (Art. 7º, IX da LGPD) e têm o e-mail pseudonimizado após 90 dias.
     """
     data = request.get_json(silent=True) or {}
     password = data.get("password")
@@ -929,6 +933,8 @@ def revoke_consent(current_user):
     if not bcrypt.checkpw(password.encode("utf-8"), current_user.password_hash.encode("utf-8")):
         return jsonify({"error": "Senha incorreta."}), 401
 
+    # Remove o usuário e dispara ON DELETE CASCADE nos dados operacionais;
+    # logs de auditoria permanecem retidos sob base legal de segurança (90 dias).
     db.session.delete(current_user)
     db.session.commit()
 
