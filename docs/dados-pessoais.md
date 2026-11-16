@@ -64,7 +64,7 @@ Essa medida atende aos padrões de segurança recomendados (OWASP ASVS V3.2) e m
 - **Ataques de Cross-Site Request Forgery (CSRF)** ou requisições forçadas a partir de navegadores com sessões abertas;
 - **Sessões deixadas abertas em dispositivos compartilhados**, impedindo que terceiros com acesso transitório à interface apaguem a conta sem conhecer a credencial principal.
 
-Todas as exclusões acionam a regra `ON DELETE CASCADE` configurada nos modelos relacionais, garantindo que sessões ativas, ofertas de monitoria e inscrições vinculadas ao titular sejam completamente expurgadas de forma atômica e irreversível.
+Todas as exclusões acionam a regra `ON DELETE CASCADE` configurada nos modelos relacionais, garantindo que sessões ativas, ofertas de monitoria e inscrições vinculadas ao titular sejam completamente expurgadas de forma atômica e irreversível - ressalvados os registros históricos de auditoria e eventuais cópias de backup, conforme detalhado na seção **Ciclo de vida pós-exclusão de conta**.
 
 ## Conclusão
 
@@ -85,3 +85,19 @@ justificativa e expiração. Essa tabela de controle não é uma cópia dos logs
 ela guarda somente a referência ao evento e os metadados da exceção. A inclusão
 é feita por administrador do banco, conforme o procedimento documentado em
 `docs/logs-imutaveis.md`, e não altera a política padrão de 90 dias.
+
+## Ciclo de vida pós-exclusão de conta
+
+Quando o titular aciona `DELETE /lgpd/delete` (ou revoga o consentimento via `POST /auth/consent/revoke`), o destino dos dados pessoais segue prazos distintos conforme a camada de armazenamento:
+
+### 1. Banco de dados ativo (`mentory_pgdata`)
+- **Remoção imediata:** A exclusão do registro em `users` aciona `ON DELETE CASCADE` e apaga imediatamente os dados cadastrais, credenciais (`password_hash`, `two_factor_secret`), sessões (`sessions`), tokens de recuperação (`password_reset_tokens`), ofertas de monitoria (`tutoring_offers`) e inscrições (`enrollments`) do volume `mentory_pgdata` do PostgreSQL.
+
+### 2. Logs de auditoria (`security_logs` e `password_reset_logs`)
+- **Sem novo registro na exclusão:** A rota `DELETE /lgpd/delete` (`backend/app/routes/lgpd.py`) não grava evento contendo e-mail ou dados pessoais do titular nas tabelas de log no momento da exclusão.
+- **Logs históricos anteriores:** Registros prévios de autenticação e recuperação de senha permanecem armazenados por legítimo interesse de segurança (Art. 7º, IX, da LGPD). Com a exclusão da conta, o campo `user_id` passa automaticamente para `NULL` (`ondelete="SET NULL"`), e o campo `email` permanece em claro por **até 90 dias** a contar da data do evento.
+- **Pseudonimização após 90 dias:** Decorrido o prazo de 90 dias, a rotina administrativa `backend/db/anonymize_old_log_emails.sql` substitui o e-mail pelo pseudônimo `redacted+<md5>@example.invalid` (salvo exceção formal ativa em `log_retention_exemptions`).
+
+### 3. Backups do volume PostgreSQL
+- **Estado atual (limitação conhecida):** Não há rotina automatizada de backup (`pg_dump` agendado ou snapshot automático) configurada no repositório ou no `docker-compose.prod.yml` para o volume `mentory_pgdata` na VPS Hostinger. Assim, na configuração atual, não existem cópias secundárias retendo dados de contas excluídas após a remoção no banco ativo.
+- **Diretriz para implantação de backups futuros:** Caso rotinas de backup lógico (`pg_dump`) ou snapshot de volume sejam habilitadas em versões futuras, os arquivos devem ser cifrados em repouso com retenção máxima definida (recomendado até **30 dias** em rotação cíclica), garantindo que dados de contas excluídas sejam eliminados definitivamente na expiração natural do ciclo de retenção, sem restauração seletiva de titulares já excluídos.
