@@ -64,8 +64,11 @@ def test_docker_compose_prod_traefik_e_isolamento_banco():
     assert "mentory-postgres:" in content
     assert "mentory-web:" in content
 
-    # Isolamento de rede do banco (não deve publicar porta 5432 no host)
+    # Isolamento de rede do banco e da aplicação (não deve publicar portas 5432 ou 5000 no host;
+    # a única entrada externa para mentory-web deve ser via Traefik na rede n8n-stack_proxy)
     assert "5432:5432" not in content
+    assert "5000:5000" not in content
+    assert "ports:" not in content
     assert "mentory-internal:" in content
 
     # Integração com Traefik v2.11 da VPS

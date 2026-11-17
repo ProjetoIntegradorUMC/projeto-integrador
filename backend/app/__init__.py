@@ -5,6 +5,7 @@ from flask import Flask, send_from_directory, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from sqlalchemy import URL
+from werkzeug.middleware.proxy_fix import ProxyFix
 from app.two_factor import get_totp_fernet
 
 db = SQLAlchemy()
@@ -89,17 +90,25 @@ def create_app():
 
     frontend_path = project_root / "frontend"
 
+    # Configuração de ProxyFix para confiar exclusivamente em 1 salto (hop) do proxy reverso
+    # imediato (Traefik v2.11 na rede Docker n8n-stack_proxy). Como docker-compose.prod.yml
+    # não publica a porta 5000 no host e mentory-web só é alcançável externamente via Traefik,
+    # clientes externos não conseguem injetar X-Forwarded-Proto diretamente no container.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
     @app.before_request
     def enforce_https():
-        # Em ambiente local rodando com TLS ou proxy reverso configurado corretamente,
-        # exige-se tráfego HTTPS.
+        # Em produção (SECURE_COOKIES=true), o tráfego externo passa obrigatoriamente pelo
+        # Traefik v2.11 (rede n8n-stack_proxy), que realiza a terminação TLS (Let's Encrypt,
+        # certresolver=myresolver) e define X-Forwarded-Proto=https no salto único confiável
+        # processado pelo ProxyFix(x_for=1, x_proto=1). Como a porta 5000 não é exposta no
+        # host e a rede mentory-internal é isolada (internal: true), requisições externas não
+        # podem contornar o Traefik para forjar X-Forwarded-Proto.
         secure_cookies = os.getenv("SECURE_COOKIES", "false").lower() == "true"
         if secure_cookies and not request.is_secure:
-            # Tenta pegar se está atrás de um proxy que passou HTTPS
-            forwarded_proto = request.headers.get('X-Forwarded-Proto', '')
-            if forwarded_proto != 'https':
-                # Bloqueia a requisição forçando o uso de HTTPS
-                abort(403, description="Acesso negado. A aplicação exige conexão segura (HTTPS).")
+            # Bloqueia qualquer requisição que não tenha chegado via HTTPS direto ou via
+            # salto único confiável do Traefik com X-Forwarded-Proto: https.
+            abort(403, description="Acesso negado. A aplicação exige conexão segura (HTTPS).")
 
     @app.after_request
     def set_security_headers(response):
