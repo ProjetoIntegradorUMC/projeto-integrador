@@ -116,5 +116,50 @@ sequenceDiagram
     end
 ```
 
+## 6. Comprovação operacional dos cookies em produção
+
+Em 17/11/2026, foi realizado um login com uma conta técnica temporária em
+`https://mentory.stack-n8n.cloud`, utilizando `curl -v` e sem registrar a
+senha ou o token de sessão. A resposta real do proxy Traefik e da aplicação
+foi:
+
+```text
+> POST /auth/login HTTP/2
+> Host: mentory.stack-n8n.cloud
+> Content-Type: application/json
+>
+< HTTP/2 200
+< set-cookie: session_id=<token-redigido>; Expires=Tue, 17 Nov 2026 02:18:50 GMT; Max-Age=1800; Secure; HttpOnly; Path=/; SameSite=Lax
+<
+{"message":"Login realizado com sucesso","requires_2fa":false}
+```
+
+O cabeçalho confirma os três atributos exigidos: `Secure`, `HttpOnly` e
+`SameSite=Lax`. O atributo `Secure` é produzido pela configuração
+`SESSION_COOKIE_SECURE`, ativada quando `SECURE_COOKIES=true` está definido no
+`.env.prod`. O cookie tem validade de 30 minutos (`Max-Age=1800`).
+
+Também foi feita a mesma tentativa pela entrada HTTP:
+
+```text
+$ curl -v http://mentory.stack-n8n.cloud/auth/login \
+    -X POST -H "Content-Type: application/json" \
+    -d '{"email":"<conta-tecnica>","password":"<senha-redigida>"}'
+> POST /auth/login HTTP/1.1
+> Host: mentory.stack-n8n.cloud
+>
+< HTTP/1.1 404 Not Found
+< Content-Type: text/plain; charset=utf-8
+< X-Content-Type-Options: nosniff
+<
+404 page not found
+```
+
+A resposta HTTP não contém `Set-Cookie` e não alcança o Flask: o entrypoint
+HTTP do proxy bloqueia a rota antes do encaminhamento para a aplicação. Isso
+comprova que não existe cookie de sessão emitido em uma requisição HTTP pura.
+Quando a requisição chega ao Flask sem `X-Forwarded-Proto: https`, o
+`before_request` `enforce_https()` aplica adicionalmente o bloqueio HTTP 403.
+
 ## Referências
 Para consultar as referências bibliográficas, científicas e normativas que fundamentam as decisões deste documento, consulte as **[Referências Técnicas](referencias.md)**.
