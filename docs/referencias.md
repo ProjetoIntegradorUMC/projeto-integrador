@@ -1,6 +1,6 @@
 # Referências Bibliográficas e Normativas
 
-Este documento centraliza as referências científicas, normas técnicas e legislações que fundamentam as decisões de arquitetura e segurança implementadas no projeto Mentory. As referências seguem o padrão ABNT.
+Este documento centraliza as referências científicas, normas técnicas e legislações que fundamentam as decisões de arquitetura e segurança implementadas no projeto Mentory. As referências seguem a ABNT NBR 6023:2018.
 
 ## 1. Livros e Fundamentação Teórica
 
@@ -10,8 +10,8 @@ Este documento centraliza as referências científicas, normas técnicas e legis
 ## 2. Normas Técnicas e Padrões da Indústria
 
 * **NIST (National Institute of Standards and Technology).** *SP 800-63B: Digital Identity Guidelines - Authentication and Lifecycle Management*. Washington, D.C.: U.S. Department of Commerce, 2017. Utilizado para fundamentar as diretrizes de armazenamento seguro de credenciais e proteção contra ataques de força bruta.
-* **IETF (Internet Engineering Task Force).** *RFC 6238: TOTP: Time-Based One-Time Password Algorithm*. 2011. Disponível em: <https://tools.ietf.org/html/rfc6238>. Utilizado como padrão técnico para a implementação da Autenticação de Dois Fatores (2FA).
-* **OWASP (Open Web Application Security Project).** *OWASP Top 10: Security Logging and Monitoring Failures*. 2021. Disponível em: <https://owasp.org/Top10/>. Utilizado como referência para a criação de trilhas de auditoria robustas e protegidas contra adulteração (Anti-Tampering).
+* **IETF (Internet Engineering Task Force).** *RFC 6238: TOTP: Time-Based One-Time Password Algorithm*. 2011. Disponível em: https://www.rfc-editor.org/rfc/rfc6238. Acesso em: 16 nov. 2026. Utilizado como padrão técnico para a implementação da Autenticação de Dois Fatores (2FA).
+* **OWASP (Open Web Application Security Project).** *OWASP Top 10: Security Logging and Monitoring Failures*. 2021. Disponível em: https://owasp.org/Top10/A09_2021-Security_Logging_and_Monitoring_Failures/. Acesso em: 16 nov. 2026. Utilizado como referência para a criação de trilhas de auditoria robustas e protegidas contra adulteração (Anti-Tampering).
 
 ## 3. Legislação
 
