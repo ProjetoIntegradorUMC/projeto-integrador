@@ -228,6 +228,14 @@ Registro de exemplo, de uma sessão encerrada pelo logout (`revoked_at` preenchi
 
 ---
 
+## 8. Cobertura automatizada dos testes
+
+O workflow [`deploy.yml`](../.github/workflows/deploy.yml) executa a suíte com `pytest-cov`, exibindo a cobertura por módulo no log do GitHub Actions e gerando o arquivo `coverage.xml`. Esse arquivo é publicado em cada execução, inclusive quando a suíte falha, no artefato [`coverage-report`](https://github.com/ProjetoIntegradorUMC/projeto-integrador/actions/workflows/deploy.yml).
+
+Na validação local com o PostgreSQL provisionado, foram medidos **73% de cobertura** (852 instruções, sendo 618 executadas), com os 80 testes aprovados. O percentual de cada execução também pode ser consultado no resumo do job e no artefato correspondente.
+
+---
+
 ## Resumo dos resultados
 
 | Teste | Resultado |
@@ -239,5 +247,6 @@ Registro de exemplo, de uma sessão encerrada pelo logout (`revoked_at` preenchi
 | SQL Injection no login | Passou |
 | XSS armazenado no painel de auditoria | Passou |
 | Token de sessão armazenado como hash | Passou |
+| Cobertura automatizada da suíte | 73% na validação local |
 
-Todos os testes de segurança previstos foram executados e documentados, com evidências correspondentes aos resultados obtidos.
+Os testes de segurança previstos estão documentados com suas evidências, e a cobertura automatizada é registrada pelo CI a cada execução.
