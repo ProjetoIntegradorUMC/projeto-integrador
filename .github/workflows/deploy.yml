@@ -49,7 +49,14 @@ jobs:
 
       - name: Executar suíte de testes
         run: |
-          pytest -v
+          pytest -v --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-report
+          path: coverage.xml
 
   deploy:
     name: Deploy na VPS Hostinger
