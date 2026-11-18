@@ -68,7 +68,7 @@ validação. Os caminhos são relativos à raiz do projeto.
 |---|---|---|
 | 5.1 | Logs de autenticação registrados | Modelo `SecurityLog` em `backend/app/models.py`; chamadas a `log_security_event` em `backend/app/routes/auth.py`; `docs/auditoria-logs.md`, seção 1.1. |
 | 5.2 | Logs de falhas e 2FA registrados | Eventos `login_failure`, `twofa_failure` e motivos em `SecurityLog`; `docs/auditoria-logs.md`; `tests/test_audit_xss.py` também valida registros de entradas anônimas. |
-| 5.3 | Proteção contra alteração dos logs | `backend/db/log_permissions.sql` concede apenas `SELECT, INSERT` e revoga `UPDATE, DELETE`; procedimento e resultado esperado em `docs/logs-imutaveis.md`. |
+| 5.3 | Proteção contra alteração dos logs | `backend/db/log_permissions.sql` concede apenas `SELECT, INSERT` e revoga `UPDATE, DELETE`; validação automatizada em `backend/db/validate_permissions.sql`; procedimento em `docs/logs-imutaveis.md` e evidências de produção na VPS (`mentory_admin` como owner e bloqueio `ERROR: permission denied` para `mentory_app`) em `docs/evidencias-auditoria-logs.md`, seção 5. |
 | 5.4 | Exemplo de análise de logs apresentado | `backend/app/routes/admin.py`, rota `/admin/logs`, agrega métricas e os 20 eventos recentes; `docs/img/23-painel-logs.png`; `docs/auditoria-logs.md`, seção 3. |
 
 ## 6. Documentação Técnico-Científica
