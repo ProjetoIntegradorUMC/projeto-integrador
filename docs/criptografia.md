@@ -9,10 +9,11 @@ A proteção dos dados enquanto trafegam entre o cliente e o servidor é fundame
 ### 1.1 Forçando Conexões Seguras
 A aplicação Mentory exige a utilização do protocolo **HTTPS**.
 - A flag `SESSION_COOKIE_SECURE` foi ativada por meio da variável de ambiente `SECURE_COOKIES=true`. Isso instrui o navegador a transmitir o cookie de sessão única e exclusivamente sobre conexões seguras.
-- Adicionou-se uma camada de inspeção na entrada da aplicação (interceptador `before_request`). Se a variável ambiente exigir *cookies* seguros e a conexão for detectada como HTTP comum, a requisição é abortada e bloqueada com o código HTTP 403 (Forbidden), garantindo que dados confidenciais nunca sejam enviados em texto claro.
+- Adicionou-se o middleware `ProxyFix(app.wsgi_app, x_for=1, x_proto=1)` (`werkzeug.middleware.proxy_fix`) aliado ao interceptador `before_request` (`enforce_https()` em `backend/app/__init__.py`). Quando `SECURE_COOKIES=true` e a requisição não é segura (`not request.is_secure`), a chamada é bloqueada com o código HTTP `403 Forbidden` (`"Acesso negado. A aplicação exige conexão segura (HTTPS)."`).
+- O modelo de confiança do cabeçalho `X-Forwarded-Proto` é restrito ao salto único (`x_proto=1`) do proxy reverso **Traefik v2.11** na rede Docker `n8n-stack_proxy`. Como `docker-compose.prod.yml` não expõe a porta `5000` diretamente no host da VPS, clientes externos não conseguem conectar-se diretamente ao container `mentory-web` para forjar `X-Forwarded-Proto: https`.
 
 ### 1.2 Certificados em Desenvolvimento e Produção
-Para ambientes locais ou de desenvolvimento, a subida direta do Flask recebe o contexto SSL (Certificado `cert.pem` e chave `key.pem` autoassinados). Já em produção, espera-se que a aplicação seja servida por trás de um proxy reverso (como NGINX) que fará a terminação do TLS com certificados validados (ex: Let's Encrypt).
+Para ambientes locais ou de desenvolvimento, a subida direta do Flask recebe o contexto SSL (certificado `cert.pem` e chave `key.pem` autoassinados gerados por `gerar_certificados.sh`). Já em produção (`https://mentory.stack-n8n.cloud`), a aplicação é servida por trás do proxy reverso **Traefik v2.11** configurado em `docker-compose.prod.yml` com o entrypoint `websecure` (porta 443), `traefik.http.routers.mentory.tls=true` e `traefik.http.routers.mentory.tls.certresolver=myresolver`, realizando a terminação TLS com certificados válidos emitidos e renovados automaticamente pela autoridade certificadora **Let's Encrypt**. As evidências operacionais da cadeia de certificados Let's Encrypt e do bloqueio de conexões HTTP estão documentadas em [Evidências de TLS e Bloqueio HTTP em Produção](evidencias-tls.md) e no [Guia de Deploy em Produção na VPS](deploy-vps.md).
 
 ## 2. Dados em Repouso
 

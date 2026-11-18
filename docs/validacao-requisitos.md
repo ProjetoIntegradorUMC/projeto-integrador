@@ -37,9 +37,9 @@ validação. Os caminhos são relativos à raiz do projeto.
 
 | Nº | Requisito | Evidência no repositório |
 |---|---|---|
-| 3.1 | Comunicação protegida por TLS/HTTPS | `backend/run.py` inicia o Flask com `ssl_context=("cert.pem", "key.pem")` quando os certificados existem; `gerar_certificados.sh` gera os certificados locais; `docs/criptografia.md`. |
-| 3.2 | Bloqueio de conexões não seguras | `backend/app/__init__.py` contém o `before_request` que bloqueia HTTP quando `SECURE_COOKIES=true`; `docs/criptografia.md`, seção 1.1. |
-| 3.3 | Evidência de tráfego cifrado | `docs/img/24-rota-sem-sessão.png` e `docs/img/22-protecao-logs.png` registram validações em ambiente local; configuração TLS documentada em `docs/criptografia.md` e executável por `backend/run.py`. |
+| 3.1 | Comunicação protegida por TLS/HTTPS | `backend/run.py` inicia o Flask com `ssl_context=("cert.pem", "key.pem")` quando os certificados existem; em produção (`docker-compose.prod.yml`), o Traefik v2.11 realiza terminação TLS com Let's Encrypt (`certresolver=myresolver`); `docs/criptografia.md`, `docs/deploy-vps.md` e `docs/evidencias-tls.md`. |
+| 3.2 | Bloqueio de conexões não seguras | `backend/app/__init__.py` aplica `ProxyFix(app.wsgi_app, x_for=1, x_proto=1)` restrito ao Traefik (porta 5000 não exposta no host, testado em `tests/test_deploy_config.py`) e `enforce_https` bloqueia HTTP com 403 quando `SECURE_COOKIES=true`; `docs/criptografia.md`, seção 1.1, e `docs/evidencias-tls.md`. |
+| 3.3 | Evidência de tráfego cifrado | `docs/evidencias-tls.md` e `docs/deploy-vps.md` registram as saídas operacionais de `curl -v http://mentory.stack-n8n.cloud` e `openssl s_client -connect mentory.stack-n8n.cloud:443` com cadeia Let's Encrypt válida (`Verify return code: 0 (ok)`), além de `docs/img/24-rota-sem-sessão.png` e `docs/img/22-protecao-logs.png`. |
 | 3.4 | Dados sensíveis criptografados em repouso | `backend/app/models.py`, tipo `EncryptedTOTPSecret`; `backend/app/two_factor.py`, funções `encrypt_totp_secret` e `decrypt_totp_secret`; `docs/criptografia.md`, seção 2.1. |
 | 3.5 | Uso de algoritmo criptográfico adequado (ex.: AES) | `backend/app/two_factor.py` usa `cryptography.fernet.Fernet`, que fornece cifragem autenticada; hashes SHA-256 são usados para tokens em `backend/app/utils/sessions.py` e `password_reset.py`. |
 | 3.6 | Chaves criptográficas protegidas | `backend/app/two_factor.py` lê `TOTP_ENCRYPTION_KEY` do ambiente; `backend/app/__init__.py` exige `SECRET_KEY`; `.env.example` documenta ambas sem valores secretos. |
